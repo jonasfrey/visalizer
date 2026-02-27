@@ -195,6 +195,17 @@ let o_model__o_keyvalpair = f_o_model({
     ]
 });
 
+let o_model__o_utterance = f_o_model({
+    s_name: 'o_utterance',
+    a_o_property: [
+        f_o_model_prop__default_id('n_id'),
+        f_o_property('s_text', 'string', (s)=>{return s!==''}),
+        f_o_model_prop__timestamp_default(s_name_prop_ts_created),
+        f_o_model_prop__default_id(f_s_name_foreign_key__from_o_model(o_model__o_fsnode)),
+        f_o_model_prop__timestamp_default(s_name_prop_ts_updated),
+    ]
+});
+
 
 
 
@@ -230,7 +241,8 @@ let a_o_model = [
     o_model__o_course_o_student,
     o_model__o_wsclient,
     o_model__o_fsnode,
-    o_model__o_keyvalpair
+    o_model__o_keyvalpair,
+    o_model__o_utterance
 ];
 
 // definition factory — creates message type templates for the a_o_wsmsg registry
@@ -267,6 +279,7 @@ let o_wsmsg__f_delete_table_data = f_o_wsmsg_def('f_delete_table_data', true);
 let o_wsmsg__f_a_o_fsnode = f_o_wsmsg_def('f_a_o_fsnode', true);
 let o_wsmsg__logmsg = f_o_wsmsg_def('logmsg', false);
 let o_wsmsg__set_state_data = f_o_wsmsg_def('set_state_data', false);
+let o_wsmsg__utterance = f_o_wsmsg_def('utterance', false);
 
 // client implementations
 o_wsmsg__logmsg.f_v_client_implementation = function(o_wsmsg, o_wsmsg__existing, o_state){
@@ -283,6 +296,16 @@ o_wsmsg__logmsg.f_v_client_implementation = function(o_wsmsg, o_wsmsg__existing,
 o_wsmsg__set_state_data.f_v_client_implementation = function(o_wsmsg, o_wsmsg__existing, o_state){
     o_state[o_wsmsg.v_data.s_property] = o_wsmsg.v_data.value;
 }
+o_wsmsg__utterance.f_v_client_implementation = function(o_wsmsg, o_wsmsg__existing, o_state){
+    if(o_state.b_utterance_muted) return;
+    let v_data = o_wsmsg.v_data;
+    if(!v_data || !v_data.o_fsnode || !v_data.o_fsnode.s_path_absolute) return;
+    let s_url = '/api/file?path=' + encodeURIComponent(v_data.o_fsnode.s_path_absolute);
+    let o_audio = new Audio(s_url);
+    o_audio.play().catch(function(o_error){
+        console.warn('utterance audio playback failed (user interaction may be required):', o_error.message);
+    });
+}
 
 let a_o_wsmsg = [
     o_wsmsg__deno_copy_file,
@@ -293,6 +316,7 @@ let a_o_wsmsg = [
     o_wsmsg__f_a_o_fsnode,
     o_wsmsg__logmsg,
     o_wsmsg__set_state_data,
+    o_wsmsg__utterance,
 ]
 
 export {
@@ -302,6 +326,7 @@ export {
     o_model__o_wsclient,
     o_model__o_fsnode,
     o_model__o_keyvalpair,
+    o_model__o_utterance,
     a_o_model,
     f_o_property,
     f_o_model,
@@ -325,6 +350,7 @@ export {
     o_wsmsg__f_delete_table_data,
     o_wsmsg__f_a_o_fsnode,
     o_wsmsg__logmsg,
+    o_wsmsg__utterance,
     f_o_wsmsg,
     f_o_wsmsg_def,
     s_o_logmsg_s_type__log,

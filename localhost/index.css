@@ -47,7 +47,7 @@ body {
     transition: all 0.3s ease;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    text-transform: capitalize;
+    text-transform: none;
 }
 
 .nav a:hover {
@@ -97,7 +97,7 @@ main, .content {
     background: rgba(255, 255, 255, 0.04);
     color: #a0aec0;
     font-weight: 600;
-    text-transform: capitalize;
+    text-transform: none;
     letter-spacing: 0.02em;
     position: sticky;
     top: 0;
@@ -139,7 +139,7 @@ main, .content {
     font-weight: 500;
     transition: all 0.2s ease;
     user-select: none;
-    text-transform: capitalize;
+    text-transform: none;
 }
 
 .a_o_model .o_model:hover {
@@ -173,7 +173,7 @@ main, .content {
     font-weight: 600;
     color: #a0aec0;
     white-space: nowrap;
-    text-transform: capitalize;
+    text-transform: none;
 }
 
 .o_form__create .a_o_input {
@@ -389,4 +389,43 @@ main, .content {
     color: #4a5568;
     min-width: 2.5rem;
     font-family: monospace;
+}
+
+/* Utterance mute button */
+.btn__utterance_mute {
+    position: fixed;
+    bottom: 1.5rem;
+    left: 1.5rem;
+    z-index: 9999;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(10, 10, 18, 0.75);
+    backdrop-filter: blur(12px);
+    color: #e2e8f0;
+    font-size: 1.4rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.btn__utterance_mute:hover {
+    transform: scale(1.1);
+    background: rgba(30, 30, 50, 0.85);
+    border-color: rgba(139, 116, 234, 0.4);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+}
+
+.btn__utterance_mute.muted {
+    opacity: 0.5;
+    border-color: rgba(252, 129, 129, 0.3);
+}
+
+.btn__utterance_mute.muted:hover {
+    opacity: 0.8;
+    border-color: rgba(252, 129, 129, 0.5);
 }

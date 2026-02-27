@@ -4,8 +4,9 @@
 // add shared server-side helper functions here and import them where needed
 
 import { s_ds } from './runtimedata.js';
-import { a_o_wsmsg, f_o_model_instance, f_s_name_table__from_o_model, o_model__o_fsnode, o_wsmsg__deno_copy_file, o_wsmsg__deno_mkdir, o_wsmsg__deno_stat, o_wsmsg__f_a_o_fsnode, o_wsmsg__f_delete_table_data, o_wsmsg__f_v_crud__indb, o_wsmsg__logmsg, o_wsmsg__set_state_data } from './localhost/constructors.js';
+import { a_o_wsmsg, f_o_model_instance, f_s_name_table__from_o_model, o_model__o_fsnode, o_model__o_utterance, o_wsmsg__deno_copy_file, o_wsmsg__deno_mkdir, o_wsmsg__deno_stat, o_wsmsg__f_a_o_fsnode, o_wsmsg__f_delete_table_data, o_wsmsg__f_v_crud__indb, o_wsmsg__logmsg, o_wsmsg__set_state_data } from '../localhost/constructors.js';
 import { f_v_crud__indb, f_db_delete_table_data } from './database_functions.js';
+import { f_o_uttdatainfo } from './cli_functions.js';
 
 let f_a_o_fsnode = async function(
     s_path,
@@ -103,6 +104,21 @@ o_wsmsg__set_state_data.f_v_server_implementation = function(o_wsmsg, o_wsmsg__e
     o_state[o_wsmsg.v_data.s_property] = o_wsmsg.v_data.value;
     return null;
 }
+let f_o_uttdatainfo__read_or_create = async function(s_text){
+    let s_name_table__utterance = f_s_name_table__from_o_model(o_model__o_utterance);
+    let s_name_table__fsnode = f_s_name_table__from_o_model(o_model__o_fsnode);
+    let a_o_existing = f_v_crud__indb('read', s_name_table__utterance, { s_text }) || [];
+    if(a_o_existing.length > 0){
+        let o_utterance = a_o_existing[0];
+        let o_fsnode = o_utterance.n_o_fsnode_n_id
+            ? (f_v_crud__indb('read', s_name_table__fsnode, { n_id: o_utterance.n_o_fsnode_n_id }) || []).at(0)
+            : null;
+        return { o_utterance, o_fsnode };
+    }
+    // not found in db, generate new utterance audio
+    return await f_o_uttdatainfo(s_text);
+};
+
 let f_v_result_from_o_wsmsg = async function(
     o_wsmsg,
     o_state
@@ -126,5 +142,6 @@ let f_v_result_from_o_wsmsg = async function(
 
 export {
     f_a_o_fsnode,
+    f_o_uttdatainfo__read_or_create,
     f_v_result_from_o_wsmsg
 };

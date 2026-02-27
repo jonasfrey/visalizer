@@ -106,20 +106,23 @@ let o_component__filebrowser = {
     created: async function() {
         let o_self = this;
         o_self.s_ds = o_state.s_ds || '/';
-        let o_keyvalpair = (o_state.a_o_keyvalpair || []).find(function(o) { return o.s_key === 's_path_absolute__filebrowser'; });
-        if (o_keyvalpair) {
-            o_self.s_path_absolute = o_keyvalpair.s_value;
-            o_self.n_id__keyvalpair = o_keyvalpair.n_id;
+        let o_resp = await f_send_wsmsg_with_response(
+            f_o_wsmsg(o_wsmsg__f_v_crud__indb.s_name, ['read', 'a_o_keyvalpair', { s_key: 's_path_absolute__filebrowser' }])
+        );
+        let a_o_result = o_resp.v_result || [];
+        if (a_o_result.length > 0) {
+            o_self.s_path_absolute = a_o_result[0].s_value;
+            o_self.n_id__keyvalpair = a_o_result[0].n_id;
         } else {
-            let o_resp = await f_send_wsmsg_with_response(
+            let o_resp_create = await f_send_wsmsg_with_response(
                 f_o_wsmsg(
                     o_wsmsg__f_v_crud__indb.s_name,
                     ['create', 'a_o_keyvalpair', { s_key: 's_path_absolute__filebrowser', s_value: o_self.s_path_absolute }]
                 )
             );
-            o_self.n_id__keyvalpair = o_resp.v_result?.n_id;
+            o_self.n_id__keyvalpair = o_resp_create.v_result?.n_id;
             if (!o_state.a_o_keyvalpair) o_state.a_o_keyvalpair = [];
-            o_state.a_o_keyvalpair.push(o_resp.v_result);
+            o_state.a_o_keyvalpair.push(o_resp_create.v_result);
         }
         await o_self.f_load_a_o_fsnode();
     },

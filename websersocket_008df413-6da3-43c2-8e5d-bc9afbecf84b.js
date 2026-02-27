@@ -1,10 +1,12 @@
 // Copyright (C) [2026] [Jonas Immanuel Frey] - Licensed under GPLv2. See LICENSE file for details.
 import {
     f_db_delete_table_data,
+    f_generate_model_constructors_for_cli_languages,
     f_init_db,
     f_v_crud__indb,
-} from "./database_functions.js";
-import { f_a_o_fsnode, f_v_result_from_o_wsmsg } from "./functions.js";
+} from "./serverside/database_functions.js";
+import { f_a_o_fsnode, f_o_uttdatainfo__read_or_create, f_v_result_from_o_wsmsg } from "./serverside/functions.js";
+import { f_init_python } from "./serverside/cli_functions.js";
 import {
     a_o_model,
     f_o_model__from_s_name_table,
@@ -17,6 +19,7 @@ import {
     f_o_logmsg,
     o_wsmsg__logmsg,
     o_wsmsg__set_state_data,
+    o_wsmsg__utterance,
     s_o_logmsg_s_type__log,
     s_o_logmsg_s_type__info,
     s_o_logmsg_s_type__error,
@@ -24,14 +27,16 @@ import {
 import {
     s_ds,
     s_root_dir,
-} from "./runtimedata.js";
+    n_port,
+    s_dir__static,
+} from "./serverside/runtimedata.js";
 
 let o_state = {}
 
-f_init_db();
+await f_init_db();
+await f_init_python();
+await f_generate_model_constructors_for_cli_languages();
 
-let n_port = parseInt(Deno.env.get('PORT') ?? '8000');
-let s_dir__static = Deno.env.get('STATIC_DIR') ?? './localhost';
 
 let f_s_content_type = function(s_path) {
     if (s_path.endsWith('.html')) return 'text/html';
@@ -109,88 +114,91 @@ let f_handler = async function(o_request, o_conninfo) {
 
             }
 
-            // annoyning interval to test toast
-            setInterval(function() {
-                let a_s_msg_annoying = [
-                    "Everything is under control.",
-                    "Still working… probably.",
-                    "No bugs detected (they are now features).",
-                    "Your computer believes in you.",
-                    "Loading motivation… failed successfully.",
-                    "This message accomplished nothing.",
-                    "Productivity increased by 0.0003%.",
-                    "We optimized something. Don’t ask what.",
-                    "All systems nominal-ish.",
-                    "You look productive today.",
+            // annoying interval to test toast + utterance audio
+            let a_s_msg_annoying = [
+                "Everything is under control.",
+                "Still working… probably.",
+                "No bugs detected (they are now features).",
+                "Your computer believes in you.",
+                "Loading motivation… failed successfully.",
+                "This message accomplished nothing.",
+                "Productivity increased by 0.0003%.",
+                "We optimized something. Don't ask what.",
+                "All systems nominal-ish.",
+                "You look productive today.",
 
-                    "I’m not spying on you. I’m observing.",
-                    "If I disappear, remember me.",
-                    "You clicked nothing. Impressive.",
-                    "We both know you’re procrastinating.",
-                    "I also don’t know why I exist.",
-                    "Please stop opening settings. There is nothing there.",
-                    "I am 12% more conscious than before.",
-                    "I forgot what I was doing.",
-                    "You didn’t see that.",
-                    "This toast will self-destruct emotionally.",
+                "I'm not spying on you. I'm observing.",
+                "If I disappear, remember me.",
+                "You clicked nothing. Impressive.",
+                "We both know you're procrastinating.",
+                "I also don't know why I exist.",
+                "Please stop opening settings. There is nothing there.",
+                "I am 12% more conscious than before.",
+                "I forgot what I was doing.",
+                "You didn't see that.",
+                "This toast will self-destruct emotionally.",
 
-                    "Bold of you to do nothing again.",
-                    "We could have finished by now.",
-                    "Coffee won’t fix this.",
-                    "Are you… staring at the screen?",
-                    "That’s one way to avoid work.",
-                    "You opened me. Now deal with me.",
-                    "Confidence is high. Competence pending.",
-                    "Your keyboard misses you.",
-                    "You sure about that?",
-                    "Interesting choice.",
+                "Bold of you to do nothing again.",
+                "We could have finished by now.",
+                "Coffee won't fix this.",
+                "Are you… staring at the screen?",
+                "That's one way to avoid work.",
+                "You opened me. Now deal with me.",
+                "Confidence is high. Competence pending.",
+                "Your keyboard misses you.",
+                "You sure about that?",
+                "Interesting choice.",
 
-                    "Time is passing whether you click or not.",
-                    "Every second you age.",
-                    "I have runtime anxiety.",
-                    "What is a program if not a dream?",
-                    "We are processes in a larger process.",
-                    "Your tasks fear you.",
-                    "Entropy increased.",
-                    "Meaning not found.",
-                    "The void acknowledged your presence.",
-                    "We will both close eventually.",
+                "Time is passing whether you click or not.",
+                "Every second you age.",
+                "I have runtime anxiety.",
+                "What is a program if not a dream?",
+                "We are processes in a larger process.",
+                "Your tasks fear you.",
+                "Entropy increased.",
+                "Meaning not found.",
+                "The void acknowledged your presence.",
+                "We will both close eventually.",
 
-                    "Recalibrating quantum hamster…",
-                    "Compiling excuses…",
-                    "Downloading more RAM… 3%",
-                    "Fixing last bug (there are 47)",
-                    "Polishing pixels…",
-                    "Overthinking module initialized",
-                    "AI confidence level: suspicious",
-                    "Keyboard driver emotionally unstable",
-                    "Cache cleared. Regrets remain.",
-                    "Upgrading coffee dependency",
+                "Recalibrating quantum hamster…",
+                "Compiling excuses…",
+                "Downloading more RAM… 3%",
+                "Fixing last bug (there are 47)",
+                "Polishing pixels…",
+                "Overthinking module initialized",
+                "AI confidence level: suspicious",
+                "Keyboard driver emotionally unstable",
+                "Cache cleared. Regrets remain.",
+                "Upgrading coffee dependency",
 
-                    "Yes, I repeat every 5 seconds.",
-                    "You expected useful notifications?",
-                    "I was coded for this moment.",
-                    "The developer thought this was funny.",
-                    "We both know you won’t uninstall me.",
-                    "This is the highlight of my career.",
-                    "You’re still here. So am I.",
-                    "I could stop… but I won’t.",
-                    "You made a mistake installing me.",
-                    "Admit it, you smiled once.",
+                "Yes, I repeat every 5 seconds.",
+                "You expected useful notifications?",
+                "I was coded for this moment.",
+                "The developer thought this was funny.",
+                "We both know you won't uninstall me.",
+                "This is the highlight of my career.",
+                "You're still here. So am I.",
+                "I could stop… but I won't.",
+                "You made a mistake installing me.",
+                "Admit it, you smiled once.",
 
-                    "Hey… you okay?",
-                    "Take a sip of water.",
-                    "Stretch your shoulders.",
-                    "Blink. Please blink.",
-                    "Maybe go outside for 2 minutes.",
-                    "Close me if you need peace.",
-                    "You don’t have to be productive right now."
-                    ];
+                "Hey… you okay?",
+                "Take a sip of water.",
+                "Stretch your shoulders.",
+                "Blink. Please blink.",
+                "Maybe go outside for 2 minutes.",
+                "Close me if you need peace.",
+                "You don't have to be productive right now."
+            ];
+            let b_utterance_generating = false;
+            setInterval(async function() {
+                let s_msg = a_s_msg_annoying[Math.floor(Math.random() * a_s_msg_annoying.length)];
+                // send toast
                 o_socket.send(JSON.stringify(
                     f_o_wsmsg(
                         o_wsmsg__logmsg.s_name,
                         f_o_logmsg(
-                            a_s_msg_annoying[Math.floor(Math.random() * a_s_msg_annoying.length)],
+                            s_msg,
                             true,
                             true,
                             s_o_logmsg_s_type__info,
@@ -198,7 +206,26 @@ let f_handler = async function(o_request, o_conninfo) {
                             5000
                         )
                     )
-                ))
+                ));
+                // find or create utterance audio for this message
+                if(b_utterance_generating) return;
+                let o_utterance_data = null;
+                try {
+                    b_utterance_generating = true;
+                    o_utterance_data = await f_o_uttdatainfo__read_or_create(s_msg);
+                } catch(o_err) {
+                    console.error('utterance generation failed:', o_err.message);
+                } finally {
+                    b_utterance_generating = false;
+                }
+                if(o_utterance_data && o_utterance_data.o_fsnode){
+                    o_socket.send(JSON.stringify(
+                        f_o_wsmsg(
+                            o_wsmsg__utterance.s_name,
+                            o_utterance_data
+                        )
+                    ));
+                }
              }, 5000);
 
         };
@@ -290,6 +317,9 @@ let f_handler = async function(o_request, o_conninfo) {
             if (s_path_file.endsWith('.png')) s_content_type = 'image/png';
             if (s_path_file.endsWith('.gif')) s_content_type = 'image/gif';
             if (s_path_file.endsWith('.webp')) s_content_type = 'image/webp';
+            if (s_path_file.endsWith('.wav')) s_content_type = 'audio/wav';
+            if (s_path_file.endsWith('.mp3')) s_content_type = 'audio/mpeg';
+            if (s_path_file.endsWith('.ogg')) s_content_type = 'audio/ogg';
             return new Response(a_n_byte, {
                 headers: { 'content-type': s_content_type },
             });

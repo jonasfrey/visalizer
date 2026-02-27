@@ -11,6 +11,9 @@ import {
     f_o_wsmsg,
     f_o_logmsg,
     s_o_logmsg_s_type__log,
+    s_o_logmsg_s_type__error,
+    s_o_logmsg_s_type__warn,
+    s_o_logmsg_s_type__info,
 } from './constructors.js';
 
 import {
@@ -42,6 +45,7 @@ let o_state = reactive({
         f_o_logmsg('Welcome to the app!', false, true, 'success', Date.now(), 5000),
     ],
     n_ts_ms_now: Date.now(),
+    b_utterance_muted: true,
 });
 
 // auto-derive reactive keys for each model table so Vue tracks them before the server sends data
@@ -82,6 +86,15 @@ let f_send_wsmsg_with_response = async function(o_wsmsg){
 }
 
 
+let n_ms__reconnect_cap = 60000;
+let b_reconnecting = false;
+
+let f_push_toast = function(s_message, s_type, n_ttl_ms){
+    o_state.a_o_toast.push(
+        f_o_logmsg(s_message, false, true, s_type, Date.now(), n_ttl_ms || 5000)
+    );
+};
+
 let f_connect = async function() {
     return new Promise(function(resolve, reject) {
         try {
@@ -91,6 +104,11 @@ let f_connect = async function() {
             o_socket.onopen = async function() {
                 o_state.s_status = 'connected';
                 o_state.b_connected = true;
+                if(b_reconnecting){
+                    f_push_toast('Reconnected to server', s_o_logmsg_s_type__info, 3000);
+                    b_reconnecting = false;
+                }
+                n_ms__reconnect_delay = 1000;
 
                 o_socket.send(JSON.stringify(
                     f_o_wsmsg(
@@ -105,7 +123,7 @@ let f_connect = async function() {
                 ));
                 resolve();
             };
-            
+
             o_socket.onmessage = async function(o_evt) {
                 let o_wsmsg = JSON.parse(o_evt.data);
 
@@ -131,20 +149,32 @@ let f_connect = async function() {
                 }
             };
 
-            o_socket.onclose = async function() {
-                o_state.s_status = 'disconnected - reconnecting...';
+            o_socket.onerror = function() {
+                f_push_toast('WebSocket error — connection to server lost', s_o_logmsg_s_type__error, 8000);
+            };
+
+            o_socket.onclose = function() {
+                o_state.s_status = 'disconnected';
                 o_state.b_connected = false;
+                b_reconnecting = true;
+                let n_sec = Math.round(n_ms__reconnect_delay / 1000);
+                f_push_toast(
+                    `Server disconnected — retrying in ${n_sec}s`,
+                    s_o_logmsg_s_type__warn,
+                    n_ms__reconnect_delay
+                );
                 setTimeout(async function() {
                     try {
                         await f_connect();
-                        n_ms__reconnect_delay = 1000;
-                    } catch {}
+                    } catch {
+                        // f_connect rejects on construction error, backoff continues via next onclose
+                    }
                 }, n_ms__reconnect_delay);
-                n_ms__reconnect_delay = Math.min(n_ms__reconnect_delay * 2, 30000);
+                n_ms__reconnect_delay = Math.min(n_ms__reconnect_delay * 2, n_ms__reconnect_cap);
             };
-            
-        } catch (error) {
-            reject(error);
+
+        } catch (o_error) {
+            reject(o_error);
         }
     });
 };
@@ -200,6 +230,14 @@ let o_app = createApp({
                         }
                     ]
 
+                },
+                {
+                    s_tag: "button",
+                    class: "btn__utterance_mute",
+                    ':class': "{ muted: b_utterance_muted }",
+                    '@click': "b_utterance_muted = !b_utterance_muted",
+                    ':title': "b_utterance_muted ? 'Unmute utterances' : 'Mute utterances'",
+                    innerHTML: "{{ b_utterance_muted ? '&#128264;' : '&#128266;' }}",
                 }
         ]
     }

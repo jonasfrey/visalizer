@@ -12,15 +12,14 @@ import {
     s_name_prop_ts_created,
     s_name_prop_ts_updated,
     a_o_data_default,
-} from "./localhost/constructors.js";
-import { s_ds, s_root_dir } from "./runtimedata.js";
+} from "../localhost/constructors.js";
+import { s_ds, s_path__database, s_path__model_constructor_cli_language } from "./runtimedata.js";
+import { ensureDir as f_ensure_dir } from "jsr:@std/fs@^1.0.23";
+
 
 let o_db = null;
 
-let s_path_database = Deno.env.get('DB_PATH') ?? './.gitignored/app.db';
-
-
-let f_init_db = async function(s_path_db = s_path_database) {
+let f_init_db = async function(s_path_db = s_path__database) {
     //make sure the folder where db should be stored exists
     await Deno.mkdir(s_path_db.slice(0, s_path_db.lastIndexOf(s_ds)), { recursive: true });
 
@@ -62,7 +61,6 @@ let f_init_db = async function(s_path_db = s_path_database) {
 };
 
 
-
 // generic db CRUD
 
 let f_db_delete_table_data = function(s_name_table){
@@ -83,7 +81,7 @@ let f_v_crud__indb = function(
     if(!o_model) throw new Error(`Model not found for table ${s_name_table}`);
     let v_return = null;
     
-    if(v_o_data){
+    if(v_o_data && s_name_crud_function !== 'read'){
 
         let a_s_error = f_a_s_error__invalid_model_instance(o_model, v_o_data);
         if(a_s_error.length > 0){
@@ -101,10 +99,10 @@ let f_v_crud__indb = function(
     }
 
     // validate values
-    let o_model_instance = null; 
+    let o_model_instance = null;
     let a_s_name_property = null;
     let a_v_value = null;
-    if(v_o_data){
+    if(v_o_data && s_name_crud_function !== 'read'){
 
         o_model_instance = f_o_model_instance(o_model, v_o_data);
         a_s_name_property = Object.keys(o_model_instance);
@@ -169,6 +167,8 @@ let f_v_crud__indb = function(
 
     return v_return;
 };
+
+
 
 let f_ensure_default_data = function(){
     // reads nested object structure from a_o_data_default and creates corresponding instances in db,
@@ -283,9 +283,44 @@ let f_ensure_default_data = function(){
 };
 
 
+let f_s_python__model_constructor = function(
+    s_name_model
+){
+    let o_model = a_o_model.find(function(o){
+        return o.s_name === s_name_model;
+    });
+    if(!o_model) throw new Error(`Model not found: ${s_name_model}`);
+    let s_constructor = `def f_${s_name_model}(data):\n`;
+    s_constructor += `    return {\n`;
+    for(let o_prop of o_model.a_o_property){
+        s_constructor += `        '${o_prop.s_name}': data.get('${o_prop.s_name}'),\n`;
+    }
+    s_constructor += `    }\n`;
+    return s_constructor;
+}
+let f_s_python__model_constructors = function(){
+
+    let s_code = `# Copyright (C) [2026] [Jonas Immanuel Frey] - Licensed under GPLv2. See LICENSE file for details.\n\n`;
+    s_code += `# Auto-generated on ${new Date().toISOString()} model constructors\n\n`;
+
+    for(let o_model of a_o_model){
+        s_code += f_s_python__model_constructor(o_model.s_name) + '\n';
+    }
+    return s_code;
+};
+
+let f_generate_model_constructors_for_cli_languages = async function(){
+    let s_python = f_s_python__model_constructors();
+    await f_ensure_dir(s_path__model_constructor_cli_language);
+        await Deno.writeTextFile(
+        s_path__model_constructor_cli_language + 'model_constructors.py',
+        s_python
+    );
+}
 export {
     f_init_db,
     f_v_crud__indb,
     f_db_delete_table_data,
-    f_ensure_default_data
+    f_ensure_default_data,
+    f_generate_model_constructors_for_cli_languages
 };

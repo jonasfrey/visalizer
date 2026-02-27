@@ -32,8 +32,14 @@ let o_component__data = {
                         's_tag': "div",
                         ":class": "'o_model' + (o_model2.s_name === o_model?.s_name ? ' active' : '')",
                         'v-for': "o_model2 of o_state.a_o_model",
-                        'innerText': "{{ o_model2.s_name }}",
+                        'innerText': "{{ o_model2.s_name }} ({{ (o_state[f_s_name_table__from_o_model(o_model2)] || []).length }})",
                         'v-on:click': "f_select_model(o_model2)",
+                    },
+                    {
+                        's_tag': "button",
+                        'class': "btn__reload",
+                        'v-on:click': "f_reload_all",
+                        'innerText': "Reload all",
                     },
                 ]
             },
@@ -196,6 +202,15 @@ let o_component__data = {
     },
     methods:{
         f_s_name_table__from_o_model,
+        f_reload_all: async function() {
+            for (let o_model2 of a_o_model) {
+                let s_name_table = f_s_name_table__from_o_model(o_model2);
+                let o_resp = await f_send_wsmsg_with_response(
+                    f_o_wsmsg(o_wsmsg__f_v_crud__indb.s_name, ['read', s_name_table])
+                );
+                o_state[s_name_table] = o_resp.v_result || [];
+            }
+        },
         f_select_model: function(o_model2) {
             this.o_model = o_model2;
             this.o_instance__new = {};
