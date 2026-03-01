@@ -83,34 +83,11 @@ let f_o_model__from_s_name_table = function(s_name_table) {
     });
 };
 
-let o_course__math101 = {
-    s_name: 'Math 101'
-}
-let o_course__cs101 = {
-    s_name: 'CS 101'
-}
-let o_student__gretel = {
-    s_name: 'Gretel',
-    o_course: o_course__cs101
-}
-let o_student__olaf = {
-    s_name: 'Olaf',
-    o_course: o_course__math101
-}
-
 let a_o_data_default = [
-    {o_student: o_student__gretel},
-    {o_student: o_student__olaf},
-    {
-        o_student: {
-            s_name: "Daria", 
-            o_course: o_course__math101
-        }
-    },
     {
         o_keyvalpair: {
             s_key: 's_path_absolute__filebrowser',
-            s_value: '/home'
+            s_value: (typeof Deno !== 'undefined') ? Deno.cwd() + '/.gitignored/testdata' : '/home'
         }
     }
 ]
@@ -127,36 +104,6 @@ let f_o_model_instance = function(
     }
     return o_data;
 }
-let o_model__o_student = f_o_model({
-    s_name: 'o_student',
-    a_o_property: [
-        f_o_model_prop__default_id(s_name_prop_id),
-        f_o_property('s_name', 'string', (s)=>{return s!==''}),
-        f_o_model_prop__timestamp_default(s_name_prop_ts_created),
-        f_o_model_prop__timestamp_default(s_name_prop_ts_updated),
-    ]
-})
-
-let o_model__o_course = f_o_model({
-    s_name: 'o_course',
-    a_o_property: [
-        f_o_model_prop__default_id(s_name_prop_id),
-        f_o_property('s_name', 'string', (s)=>{return s!==''}),
-        f_o_model_prop__timestamp_default(s_name_prop_ts_created),
-        f_o_model_prop__timestamp_default(s_name_prop_ts_updated),
-    ]
-})
-
-let o_model__o_course_o_student = f_o_model({
-    s_name: 'o_course_o_student', //'enrolment' table to link students and courses in a many-to-many relationship
-    a_o_property: [
-        f_o_model_prop__default_id(s_name_prop_id),
-        f_o_model_prop__default_id(f_s_name_foreign_key__from_o_model(o_model__o_course)),
-        f_o_model_prop__default_id(f_s_name_foreign_key__from_o_model(o_model__o_student)),
-        f_o_model_prop__timestamp_default(s_name_prop_ts_created),
-        f_o_model_prop__timestamp_default(s_name_prop_ts_updated),
-    ]
-})
 let o_model__o_wsclient = f_o_model({
     s_name: 'o_wsclient',
     a_o_property: [
@@ -177,6 +124,19 @@ let o_model__o_fsnode = f_o_model({
         f_o_property('b_folder', 'boolean', (b)=>{return typeof b === 'boolean'}),
         f_o_property('b_image', 'boolean'),
         f_o_property('b_video', 'boolean'),
+        f_o_model_prop__timestamp_default(s_name_prop_ts_created),
+        f_o_model_prop__timestamp_default(s_name_prop_ts_updated),
+    ]
+});
+let o_model__o_scantarget = f_o_model({
+    s_name: 'o_scantarget',
+    a_o_property: [
+        f_o_model_prop__default_id(s_name_prop_id),
+        f_o_property('s_path_absolute', 'string', (s)=>{return s!==''}),
+        f_o_property('n_files_recursive', 'number'),
+        f_o_property('n_folders_recursive', 'number'),
+        f_o_model_prop__default_id(f_s_name_foreign_key__from_o_model(o_model__o_fsnode)),
+        f_o_property('b_recursive', 'boolean'),
         f_o_model_prop__timestamp_default(s_name_prop_ts_created),
         f_o_model_prop__timestamp_default(s_name_prop_ts_updated),
     ]
@@ -236,11 +196,9 @@ let f_o_logmsg = function(
 
 
 let a_o_model = [
-    o_model__o_student,
-    o_model__o_course,
-    o_model__o_course_o_student,
     o_model__o_wsclient,
     o_model__o_fsnode,
+    o_model__o_scantarget,
     o_model__o_keyvalpair,
     o_model__o_utterance
 ];
@@ -280,6 +238,9 @@ let o_wsmsg__f_a_o_fsnode = f_o_wsmsg_def('f_a_o_fsnode', true);
 let o_wsmsg__logmsg = f_o_wsmsg_def('logmsg', false);
 let o_wsmsg__set_state_data = f_o_wsmsg_def('set_state_data', false);
 let o_wsmsg__utterance = f_o_wsmsg_def('utterance', false);
+let o_wsmsg__scan_folder = f_o_wsmsg_def('scan_folder', true);
+let o_wsmsg__cancel_scan = f_o_wsmsg_def('cancel_scan', false);
+let o_wsmsg__remove_scantarget = f_o_wsmsg_def('remove_scantarget', true);
 
 // client implementations
 o_wsmsg__logmsg.f_v_client_implementation = function(o_wsmsg, o_wsmsg__existing, o_state){
@@ -317,14 +278,15 @@ let a_o_wsmsg = [
     o_wsmsg__logmsg,
     o_wsmsg__set_state_data,
     o_wsmsg__utterance,
+    o_wsmsg__scan_folder,
+    o_wsmsg__cancel_scan,
+    o_wsmsg__remove_scantarget,
 ]
 
 export {
-    o_model__o_student,
-    o_model__o_course,
-    o_model__o_course_o_student,
     o_model__o_wsclient,
     o_model__o_fsnode,
+    o_model__o_scantarget,
     o_model__o_keyvalpair,
     o_model__o_utterance,
     a_o_model,
@@ -351,6 +313,9 @@ export {
     o_wsmsg__f_a_o_fsnode,
     o_wsmsg__logmsg,
     o_wsmsg__utterance,
+    o_wsmsg__scan_folder,
+    o_wsmsg__cancel_scan,
+    o_wsmsg__remove_scantarget,
     f_o_wsmsg,
     f_o_wsmsg_def,
     s_o_logmsg_s_type__log,

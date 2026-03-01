@@ -4,6 +4,7 @@ import {
     f_generate_model_constructors_for_cli_languages,
     f_init_db,
     f_v_crud__indb,
+    f_set_send_logmsg,
 } from "./serverside/database_functions.js";
 import { f_a_o_fsnode, f_o_uttdatainfo__read_or_create, f_v_result_from_o_wsmsg } from "./serverside/functions.js";
 import { f_init_python } from "./serverside/cli_functions.js";
@@ -11,7 +12,6 @@ import {
     a_o_model,
     f_o_model__from_s_name_table,
     f_o_model_instance,
-    o_model__o_course,
     o_model__o_wsclient,
     a_o_wsmsg,
     f_s_name_table__from_o_model,
@@ -30,13 +30,14 @@ import {
     n_port,
     s_dir__static,
 } from "./serverside/runtimedata.js";
+import { f_download_testdata } from "./serverside/download_testdata.js";
 
 let o_state = {}
 
 await f_init_db();
 await f_init_python();
 await f_generate_model_constructors_for_cli_languages();
-
+await f_download_testdata();
 
 let f_s_content_type = function(s_path) {
     if (s_path.endsWith('.html')) return 'text/html';
@@ -48,6 +49,7 @@ let f_s_content_type = function(s_path) {
 
 // provide direct access to Deno specifc functions like Deno.writeFile through standard http requests
 
+let o_socket =null;
 
 let f_handler = async function(o_request, o_conninfo) {
     // websocket upgrade
@@ -81,6 +83,21 @@ let f_handler = async function(o_request, o_conninfo) {
         }
         o_socket.onopen = async function() {
             console.log('websocket connected');
+            f_set_send_logmsg(function(s_msg) {
+                o_socket.send(JSON.stringify(
+                    f_o_wsmsg(
+                        o_wsmsg__logmsg.s_name,
+                        f_o_logmsg(
+                            s_msg,
+                            true,
+                            true,
+                            s_o_logmsg_s_type__info,
+                            Date.now(),
+                            3000
+                        )
+                    )
+                ));
+            });
             o_socket.send(JSON.stringify(
                 f_o_wsmsg(
                     o_wsmsg__set_state_data.s_name,
@@ -239,7 +256,8 @@ let f_handler = async function(o_request, o_conninfo) {
                 try {
                     let v_result = await f_v_result_from_o_wsmsg(
                         o_wsmsg,
-                        o_state
+                        o_state,
+                        o_socket
                     );
                     if(o_wsmsg__existing.b_expecting_response){
                         o_socket.send(JSON.stringify({
@@ -345,6 +363,9 @@ let f_handler = async function(o_request, o_conninfo) {
     }
 };
 
+export {
+    o_socket
+}
 Deno.serve({
     port: n_port,
     onListen() {

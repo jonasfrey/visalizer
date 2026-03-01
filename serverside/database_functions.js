@@ -18,6 +18,11 @@ import { ensureDir as f_ensure_dir } from "jsr:@std/fs@^1.0.23";
 
 
 let o_db = null;
+let f_send_logmsg = null;
+
+let f_set_send_logmsg = function(f) {
+    f_send_logmsg = f;
+};
 
 let f_init_db = async function(s_path_db = s_path__database) {
     //make sure the folder where db should be stored exists
@@ -77,11 +82,16 @@ let f_v_crud__indb = function(
     v_o_data,
     v_o_data_update
 ){
+
+    if (f_send_logmsg) {
+        f_send_logmsg(`${s_name_crud_function} on ${s_name_table}`);
+    }
+
     let o_model = f_o_model__from_s_name_table(s_name_table);
     if(!o_model) throw new Error(`Model not found for table ${s_name_table}`);
     let v_return = null;
     
-    if(v_o_data && s_name_crud_function !== 'read'){
+    if(v_o_data && s_name_crud_function !== 'read' && s_name_crud_function !== 'delete'){
 
         let a_s_error = f_a_s_error__invalid_model_instance(o_model, v_o_data);
         if(a_s_error.length > 0){
@@ -102,7 +112,7 @@ let f_v_crud__indb = function(
     let o_model_instance = null;
     let a_s_name_property = null;
     let a_v_value = null;
-    if(v_o_data && s_name_crud_function !== 'read'){
+    if(v_o_data && s_name_crud_function !== 'read' && s_name_crud_function !== 'delete'){
 
         o_model_instance = f_o_model_instance(o_model, v_o_data);
         a_s_name_property = Object.keys(o_model_instance);
@@ -154,11 +164,7 @@ let f_v_crud__indb = function(
     }
 
     if (s_name_crud_function === 'delete') {
-        if(!a_s_name_property.includes(s_name_prop_id)){
-            throw new Error(`id property (${s_name_prop_id}) is required for delete`);
-        }
-        // v_o_data should be an instance of o_model, with n_id property set to the id of the row to delete
-        if (!v_o_data || v_o_data.n_id === undefined || v_o_data.n_id === null) return false;
+        if (!v_o_data || v_o_data[s_name_prop_id] === undefined || v_o_data[s_name_prop_id] === null) return false;
         o_db.exec('PRAGMA foreign_keys = OFF');
         o_db.prepare(`DELETE FROM ${s_name_table} WHERE n_id = ?`).run(v_o_data.n_id);
         o_db.exec('PRAGMA foreign_keys = ON');
@@ -322,5 +328,6 @@ export {
     f_v_crud__indb,
     f_db_delete_table_data,
     f_ensure_default_data,
-    f_generate_model_constructors_for_cli_languages
+    f_generate_model_constructors_for_cli_languages,
+    f_set_send_logmsg
 };

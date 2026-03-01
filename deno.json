@@ -6,7 +6,8 @@
         "run": "B_DENO_TASK=1 deno run --allow-net --allow-read --allow-write --allow-env --allow-ffi --env websersocket_008df413-6da3-43c2-8e5d-bc9afbecf84b.js",
         "stop": "pkill -f 'deno run.*websersocket_008df413-6da3-43c2-8e5d-bc9afbecf84b.js' || echo 'No running websersocket process found.'",
         "restart": "deno task stop && deno task run",
-        "test": "deno test --allow-net --allow-read --allow-write --allow-env --allow-ffi function_testings.js",
-        "uninit": "deno run --allow-read --allow-write --allow-env --env uninit.js"
+        "test": "deno test --allow-net --allow-read --allow-write --allow-env --allow-ffi ./serverside/function_testings.js",
+        "uninit": "deno run --allow-read --allow-write --allow-env --env ./serverside/uninit.js",
+        "download-testdata": "deno run --allow-net --allow-read --allow-write --allow-env --allow-run --env ./serverside/download_testdata.js"
     }
 }

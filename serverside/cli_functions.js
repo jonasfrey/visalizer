@@ -131,7 +131,38 @@ let f_o_uttdatainfo = async function(s_text){
     };
 };
 
+let f_o_scantarget__from_s_path = async function(
+    s_path_absolute,
+    b_recursive = true,
+) {
+    let a_s_depth = b_recursive ? [] : ['-maxdepth', '1'];
+
+    let f_n_count = async function(s_type) {
+        let o_cmd = new Deno.Command('find', {
+            args: [s_path_absolute, ...a_s_depth, '-type', s_type],
+            stdout: 'piped',
+            stderr: 'null',
+        });
+        let o_output = await o_cmd.output();
+        let s_stdout = new TextDecoder().decode(o_output.stdout);
+        // count non-empty lines
+        return s_stdout.split('\n').filter(function(s) { return s !== ''; }).length;
+    };
+
+    let n_files = await f_n_count('f');
+    // subtract 1 from dir count because find includes the root directory itself
+    let n_folders = Math.max(0, (await f_n_count('d')) - 1);
+
+    return {
+        s_path_absolute,
+        b_recursive,
+        n_files,
+        n_folders,
+        n_total: n_files + n_folders,
+    };
+}
 export {
     f_init_python,
     f_o_uttdatainfo,
+    f_o_scantarget__from_s_path,
 };
