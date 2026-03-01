@@ -76,6 +76,14 @@ let f_db_delete_table_data = function(s_name_table){
     o_db.exec('PRAGMA foreign_keys = ON');
     return v_result;
 }
+let f_db_delete_where_like = function(s_name_table, s_column, s_pattern){
+    let o_model = f_o_model__from_s_name_table(s_name_table);
+    if(!o_model) throw new Error(`Unknown table: ${s_name_table}`);
+    o_db.exec('PRAGMA foreign_keys = OFF');
+    let n_changes = o_db.prepare(`DELETE FROM ${s_name_table} WHERE ${s_column} LIKE ?`).run(s_pattern);
+    o_db.exec('PRAGMA foreign_keys = ON');
+    return n_changes;
+}
 let f_v_crud__indb = function(
     s_name_crud_function,
     s_name_table,
@@ -83,9 +91,9 @@ let f_v_crud__indb = function(
     v_o_data_update
 ){
 
-    if (f_send_logmsg) {
-        f_send_logmsg(`${s_name_crud_function} on ${s_name_table}`);
-    }
+    // if (f_send_logmsg) {
+    //     f_send_logmsg(`${s_name_crud_function} on ${s_name_table}`);
+    // }
 
     let o_model = f_o_model__from_s_name_table(s_name_table);
     if(!o_model) throw new Error(`Model not found for table ${s_name_table}`);
@@ -327,6 +335,7 @@ export {
     f_init_db,
     f_v_crud__indb,
     f_db_delete_table_data,
+    f_db_delete_where_like,
     f_ensure_default_data,
     f_generate_model_constructors_for_cli_languages,
     f_set_send_logmsg

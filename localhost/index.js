@@ -95,6 +95,41 @@ let f_push_toast = function(s_message, s_type, n_ttl_ms){
     );
 };
 
+let a_s_spinner_frame = ['|', '/', '-', '\\'];
+
+let f_o_logmsg__loading = function(s_message, s_type) {
+    let o_logmsg = f_o_logmsg(
+        a_s_spinner_frame[0] + ' ' + s_message,
+        false, true, s_type || 'info', Date.now(), Infinity
+    );
+    o_state.a_o_toast.push(o_logmsg);
+    let n_frame = 0;
+    let s_current_message = s_message;
+    let n_id_interval = setInterval(function() {
+        n_frame = (n_frame + 1) % a_s_spinner_frame.length;
+        o_logmsg.s_message = a_s_spinner_frame[n_frame] + ' ' + s_current_message;
+    }, 200);
+    return {
+        f_update: function(s_new) {
+            s_current_message = s_new;
+        },
+        f_done: function(s_done_message, n_ttl_ms) {
+            clearInterval(n_id_interval);
+            o_logmsg.s_message = s_done_message || s_current_message;
+            o_logmsg.s_type = 'success';
+            o_logmsg.n_ts_ms_created = Date.now();
+            o_logmsg.n_ttl_ms = n_ttl_ms || 3000;
+        },
+        f_error: function(s_error_message, n_ttl_ms) {
+            clearInterval(n_id_interval);
+            o_logmsg.s_message = s_error_message || s_current_message;
+            o_logmsg.s_type = 'error';
+            o_logmsg.n_ts_ms_created = Date.now();
+            o_logmsg.n_ttl_ms = n_ttl_ms || 5000;
+        }
+    };
+};
+
 let f_connect = async function() {
     return new Promise(function(resolve, reject) {
         try {
@@ -262,5 +297,6 @@ let f_o_socket = function() {
 export {
     o_state,
     f_o_socket,
-    f_send_wsmsg_with_response
+    f_send_wsmsg_with_response,
+    f_o_logmsg__loading
 }

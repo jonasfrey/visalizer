@@ -249,7 +249,7 @@ o_wsmsg__logmsg.f_v_client_implementation = function(o_wsmsg, o_wsmsg__existing,
         console[o_logmsg.s_type](o_logmsg.s_message);
     }
     if(o_logmsg.b_guilog){
-        o_logmsg.n_ts_ms_created = o_logmsg.n_ts_ms_created || Date.now();
+        o_logmsg.n_ts_ms_created = Date.now();
         o_logmsg.n_ttl_ms = o_logmsg.n_ttl_ms || 5000;
         o_state.a_o_toast.push(o_logmsg);
     }

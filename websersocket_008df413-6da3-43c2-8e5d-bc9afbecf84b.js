@@ -84,6 +84,7 @@ let f_handler = async function(o_request, o_conninfo) {
         o_socket.onopen = async function() {
             console.log('websocket connected');
             f_set_send_logmsg(function(s_msg) {
+                console.log('f_send_logmsg:', s_msg);
                 o_socket.send(JSON.stringify(
                     f_o_wsmsg(
                         o_wsmsg__logmsg.s_name,
