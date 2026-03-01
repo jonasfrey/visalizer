@@ -30,7 +30,7 @@ import {
     n_port,
     s_dir__static,
 } from "./serverside/runtimedata.js";
-import { f_download_testdata } from "./serverside/download_testdata.js";
+import { f_download_testdata, f_download_testdata__video } from "./serverside/download_testdata.js";
 
 let o_state = {}
 
@@ -38,6 +38,7 @@ await f_init_db();
 await f_init_python();
 await f_generate_model_constructors_for_cli_languages();
 await f_download_testdata();
+await f_download_testdata__video();
 
 let f_s_content_type = function(s_path) {
     if (s_path.endsWith('.html')) return 'text/html';
@@ -132,7 +133,7 @@ let f_handler = async function(o_request, o_conninfo) {
 
             }
 
-            // annoying interval to test toast + utterance audio
+            // annoying interval to test logmsg + utterance audio
             let a_s_msg_annoying = [
                 "Everything is under control.",
                 "Still working… probably.",
@@ -154,7 +155,7 @@ let f_handler = async function(o_request, o_conninfo) {
                 "I am 12% more conscious than before.",
                 "I forgot what I was doing.",
                 "You didn't see that.",
-                "This toast will self-destruct emotionally.",
+                "This logmsg will self-destruct emotionally.",
 
                 "Bold of you to do nothing again.",
                 "We could have finished by now.",
@@ -209,42 +210,42 @@ let f_handler = async function(o_request, o_conninfo) {
                 "You don't have to be productive right now."
             ];
             let b_utterance_generating = false;
-            setInterval(async function() {
-                let s_msg = a_s_msg_annoying[Math.floor(Math.random() * a_s_msg_annoying.length)];
-                // send toast
-                o_socket.send(JSON.stringify(
-                    f_o_wsmsg(
-                        o_wsmsg__logmsg.s_name,
-                        f_o_logmsg(
-                            s_msg,
-                            true,
-                            true,
-                            s_o_logmsg_s_type__info,
-                            Date.now(),
-                            5000
-                        )
-                    )
-                ));
-                // find or create utterance audio for this message
-                if(b_utterance_generating) return;
-                let o_utterance_data = null;
-                try {
-                    b_utterance_generating = true;
-                    o_utterance_data = await f_o_uttdatainfo__read_or_create(s_msg);
-                } catch(o_err) {
-                    console.error('utterance generation failed:', o_err.message);
-                } finally {
-                    b_utterance_generating = false;
-                }
-                if(o_utterance_data && o_utterance_data.o_fsnode){
-                    o_socket.send(JSON.stringify(
-                        f_o_wsmsg(
-                            o_wsmsg__utterance.s_name,
-                            o_utterance_data
-                        )
-                    ));
-                }
-             }, 5000);
+            // setInterval(async function() {
+            //     let s_msg = a_s_msg_annoying[Math.floor(Math.random() * a_s_msg_annoying.length)];
+            //     // send logmsg
+            //     o_socket.send(JSON.stringify(
+            //         f_o_wsmsg(
+            //             o_wsmsg__logmsg.s_name,
+            //             f_o_logmsg(
+            //                 s_msg,
+            //                 true,
+            //                 true,
+            //                 s_o_logmsg_s_type__info,
+            //                 Date.now(),
+            //                 5000
+            //             )
+            //         )
+            //     ));
+            //     // find or create utterance audio for this message
+            //     if(b_utterance_generating) return;
+            //     let o_utterance_data = null;
+            //     try {
+            //         b_utterance_generating = true;
+            //         o_utterance_data = await f_o_uttdatainfo__read_or_create(s_msg);
+            //     } catch(o_err) {
+            //         console.error('utterance generation failed:', o_err.message);
+            //     } finally {
+            //         b_utterance_generating = false;
+            //     }
+            //     if(o_utterance_data && o_utterance_data.o_fsnode){
+            //         o_socket.send(JSON.stringify(
+            //             f_o_wsmsg(
+            //                 o_wsmsg__utterance.s_name,
+            //                 o_utterance_data
+            //             )
+            //         ));
+            //     }
+            //  }, 5000);
 
         };
 
@@ -275,7 +276,7 @@ let f_handler = async function(o_request, o_conninfo) {
                             s_error: o_error.message,
                         }));
                     }
-                    // send error logmsg for console + GUI toast
+                    // send error logmsg for console + GUI logmsg
                     o_socket.send(JSON.stringify(
                         f_o_wsmsg(
                             o_wsmsg__logmsg.s_name,
@@ -336,6 +337,10 @@ let f_handler = async function(o_request, o_conninfo) {
             if (s_path_file.endsWith('.png')) s_content_type = 'image/png';
             if (s_path_file.endsWith('.gif')) s_content_type = 'image/gif';
             if (s_path_file.endsWith('.webp')) s_content_type = 'image/webp';
+            if (s_path_file.endsWith('.mp4')) s_content_type = 'video/mp4';
+            if (s_path_file.endsWith('.webm')) s_content_type = 'video/webm';
+            if (s_path_file.endsWith('.mkv')) s_content_type = 'video/x-matroska';
+            if (s_path_file.endsWith('.avi')) s_content_type = 'video/x-msvideo';
             if (s_path_file.endsWith('.wav')) s_content_type = 'audio/wav';
             if (s_path_file.endsWith('.mp3')) s_content_type = 'audio/mpeg';
             if (s_path_file.endsWith('.ogg')) s_content_type = 'audio/ogg';

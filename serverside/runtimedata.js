@@ -1,5 +1,7 @@
 // Copyright (C) [2026] [Jonas Immanuel Frey] - Licensed under GPLv2. See LICENSE file for details.
 
+import { f_o_logmsg, f_o_model_instance } from "../localhost/constructors.js";
+
 // derive project root from this file's location (serverside/ -> parent)
 let n_idx__last_sep = Math.max(
     import.meta.dirname.lastIndexOf('/'),
@@ -24,6 +26,13 @@ let s_dir__testdata = Deno.env.get('TESTDATA_DIR') ?? './.gitignored/testdata';
 let s_bin__python = Deno.env.get('BIN_PYTHON') ?? 'python3';
 let s_path__venv = Deno.env.get('PATH_VENV') ?? './venv';
 
+let a_s_ext__image = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'tiff', 'tif', 'avif', 'heic', 'heif'];
+let a_s_ext__video = ['mp4', 'mkv', 'avi', 'mov', 'wmv', 'flv', 'webm', 'm4v', 'mpg', 'mpeg'];
+let s_path_binary__identify = 'identify';
+let s_path_binary__ffprobe = 'ffprobe';
+let s_path_binary__find = 'find';
+
+
 export {
     s_root_dir,
     s_ds,
@@ -35,4 +44,9 @@ export {
     s_dir__testdata,
     s_bin__python,
     s_path__venv,
+    a_s_ext__image,
+    a_s_ext__video,
+    s_path_binary__identify,
+    s_path_binary__ffprobe,
+    s_path_binary__find,
 }

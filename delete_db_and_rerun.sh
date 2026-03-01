@@ -1,0 +1,1 @@
+deno task uninit && mkdir .gitignored && cp -r testdata/ .gitignored/  && deno task run

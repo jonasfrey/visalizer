@@ -409,8 +409,8 @@ main, .content {
     box-shadow: 0 4px 12px rgba(139, 116, 234, 0.25);
 }
 
-/* Toast styles */
-.a_o_toast {
+/* logmsg styles */
+.a_o_logmsg {
     position: fixed;
     bottom: 1.5rem;
     right: 1.5rem;
@@ -422,7 +422,7 @@ main, .content {
     max-width: 360px;
 }
 
-.a_o_toast .o_toast {
+.a_o_logmsg .o_logmsg {
     padding: 0.8rem 1.25rem;
     background: rgba(10, 10, 18, 0.85);
     backdrop-filter: blur(12px);
@@ -433,38 +433,38 @@ main, .content {
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
     border: 1px solid rgba(255, 255, 255, 0.08);
     pointer-events: auto;
-    animation: toast_slide_in 0.3s ease forwards;
+    animation: logmsg_slide_in 0.3s ease forwards;
     transition: opacity 0.4s ease, transform 0.4s ease;
 }
 
-.a_o_toast .o_toast.info {
+.a_o_logmsg .o_logmsg.info {
     border-color: rgba(66, 153, 225, 0.4);
     background: rgba(43, 108, 176, 0.6);
 }
 
-.a_o_toast .o_toast.success {
+.a_o_logmsg .o_logmsg.success {
     border-color: rgba(72, 187, 120, 0.4);
     background: rgba(39, 103, 73, 0.6);
 }
 
-.a_o_toast .o_toast.warning {
+.a_o_logmsg .o_logmsg.warning {
     border-color: rgba(237, 137, 54, 0.4);
     background: rgba(151, 90, 22, 0.6);
 }
 
-.a_o_toast .o_toast.error {
+.a_o_logmsg .o_logmsg.error {
     border-color: rgba(252, 129, 129, 0.4);
     background: rgba(155, 44, 44, 0.6);
 }
 
-.a_o_toast .o_toast.expired {
+.a_o_logmsg .o_logmsg.expired {
     opacity: 0;
     display: none;
     transform: translateX(100%);
     pointer-events: none;
 }
 
-@keyframes toast_slide_in {
+@keyframes logmsg_slide_in {
     from {
         opacity: 0;
         transform: translateX(100%);

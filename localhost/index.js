@@ -21,6 +21,10 @@ import {
 } from "./lib/handyhelpers.js"
 import { o_component__data } from './o_component__data.js';
 import { o_component__filebrowser } from './o_component__filebrowser.js';
+import { o_component__fsnode } from './o_component__fsnode.js';
+import { o_component__fsnode_preprocessor } from './o_component__fsnode_preprocessor.js';
+import { o_logmsg__basic_scan, o_logmsg__blip_scan, o_logmsg__vitpose_scan, o_logmsg__yolo_scan } from "./runtimedata.js";
+
 
 let o_state = reactive({
     b_loaded: false,
@@ -39,61 +43,29 @@ let o_state = reactive({
             name: 'filebrowser',
             component: markRaw(o_component__filebrowser),
         },
+        {
+            path: '/fsnode',
+            name: 'fsnode',
+            component: markRaw(o_component__fsnode),
+        },
+        {
+            path: '/preprocessor',
+            name: 'preprocessor',
+            component: markRaw(o_component__fsnode_preprocessor),
+        },
     ],
     a_o_model,
-    a_o_toast: [
+    a_o_logmsg: [
         f_o_logmsg('Welcome to the app!', false, true, 'success', Date.now(), 5000),
     ],
     n_ts_ms_now: Date.now(),
     b_utterance_muted: true,
+    o_logmsg__basic_scan,
+    o_logmsg__yolo_scan,
+    o_logmsg__vitpose_scan,
+    o_logmsg__blip_scan,
 });
 
-// auto-derive reactive keys for each model table so Vue tracks them before the server sends data
-for (let o_model of a_o_model) {
-    o_state[f_s_name_table__from_o_model(o_model)] = [];
-}
-
-let o_socket = null;
-let a_f_handler = [];
-let n_ms__reconnect_delay = 1000;
-
-let f_register_handler = function(f_handler) {
-    a_f_handler.push(f_handler);
-    return function() {
-        let n_idx = a_f_handler.indexOf(f_handler);
-        if (n_idx !== -1) a_f_handler.splice(n_idx, 1);
-    };
-};
-
-let n_ms__wsmsg_timeout = 10000;
-
-let f_send_wsmsg_with_response = async function(o_wsmsg){
-    return new Promise(function(resolve, reject) {
-        let n_id__timeout = setTimeout(function(){
-            f_unregister();
-            reject(new Error(`wsmsg '${o_wsmsg.s_name}' timed out after ${n_ms__wsmsg_timeout}ms (uuid: ${o_wsmsg.s_uuid})`));
-        }, n_ms__wsmsg_timeout);
-        let f_handler_response = function(o_wsmsg2){
-            if(o_wsmsg2.s_uuid === o_wsmsg.s_uuid){
-                clearTimeout(n_id__timeout);
-                f_unregister();
-                resolve(o_wsmsg2);
-            }
-        }
-        let f_unregister = f_register_handler(f_handler_response);
-        o_socket.send(JSON.stringify(o_wsmsg))
-    });
-}
-
-
-let n_ms__reconnect_cap = 60000;
-let b_reconnecting = false;
-
-let f_push_toast = function(s_message, s_type, n_ttl_ms){
-    o_state.a_o_toast.push(
-        f_o_logmsg(s_message, false, true, s_type, Date.now(), n_ttl_ms || 5000)
-    );
-};
 
 let a_s_spinner_frame = ['|', '/', '-', '\\'];
 
@@ -102,7 +74,7 @@ let f_o_logmsg__loading = function(s_message, s_type) {
         a_s_spinner_frame[0] + ' ' + s_message,
         false, true, s_type || 'info', Date.now(), Infinity
     );
-    o_state.a_o_toast.push(o_logmsg);
+    o_state.a_o_logmsg.push(o_logmsg);
     let n_frame = 0;
     let s_current_message = s_message;
     let n_id_interval = setInterval(function() {
@@ -130,6 +102,51 @@ let f_o_logmsg__loading = function(s_message, s_type) {
     };
 };
 
+
+// auto-derive reactive keys for each model table so Vue tracks them before the server sends data
+for (let o_model of a_o_model) {
+    o_state[f_s_name_table__from_o_model(o_model)] = [];
+}
+
+let o_socket = null;
+let a_f_handler = [];
+let n_ms__reconnect_delay = 1000;
+
+let f_register_handler = function(f_handler) {
+    a_f_handler.push(f_handler);
+    return function() {
+        let n_idx = a_f_handler.indexOf(f_handler);
+        if (n_idx !== -1) a_f_handler.splice(n_idx, 1);
+    };
+};
+
+let n_ms__wsmsg_timeout = 10000;
+
+let f_send_wsmsg_with_response = async function(o_wsmsg, n_ms__timeout){
+    let n_ms = n_ms__timeout || n_ms__wsmsg_timeout;
+    return new Promise(function(resolve, reject) {
+        let n_id__timeout = setTimeout(function(){
+            f_unregister();
+            reject(new Error(`wsmsg '${o_wsmsg.s_name}' timed out after ${n_ms}ms (uuid: ${o_wsmsg.s_uuid})`));
+        }, n_ms);
+        let f_handler_response = function(o_wsmsg2){
+            if(o_wsmsg2.s_uuid === o_wsmsg.s_uuid){
+                clearTimeout(n_id__timeout);
+                f_unregister();
+                resolve(o_wsmsg2);
+            }
+        }
+        let f_unregister = f_register_handler(f_handler_response);
+        o_socket.send(JSON.stringify(o_wsmsg))
+    });
+}
+
+
+let n_ms__reconnect_cap = 60000;
+let b_reconnecting = false;
+
+
+
 let f_connect = async function() {
     return new Promise(function(resolve, reject) {
         try {
@@ -140,7 +157,9 @@ let f_connect = async function() {
                 o_state.s_status = 'connected';
                 o_state.b_connected = true;
                 if(b_reconnecting){
-                    f_push_toast('Reconnected to server', s_o_logmsg_s_type__info, 3000);
+                    o_state.a_o_logmsg.push(
+                        f_o_logmsg('Reconnected to server', false, true, s_o_logmsg_s_type__info, Date.now(), 3000)
+                    );
                     b_reconnecting = false;
                 }
                 n_ms__reconnect_delay = 1000;
@@ -185,7 +204,9 @@ let f_connect = async function() {
             };
 
             o_socket.onerror = function() {
-                f_push_toast('WebSocket error — connection to server lost', s_o_logmsg_s_type__error, 8000);
+                o_state.a_o_logmsg.push(
+                    f_o_logmsg('WebSocket error — connection to server lost', false, true, s_o_logmsg_s_type__error, Date.now(), 8000)
+                );
             };
 
             o_socket.onclose = function() {
@@ -193,10 +214,8 @@ let f_connect = async function() {
                 o_state.b_connected = false;
                 b_reconnecting = true;
                 let n_sec = Math.round(n_ms__reconnect_delay / 1000);
-                f_push_toast(
-                    `Server disconnected — retrying in ${n_sec}s`,
-                    s_o_logmsg_s_type__warn,
-                    n_ms__reconnect_delay
+                o_state.a_o_logmsg.push(
+                    f_o_logmsg(`Server disconnected — retrying in ${n_sec}s`, false, true, s_o_logmsg_s_type__warn, Date.now(), n_ms__reconnect_delay)
                 );
                 setTimeout(async function() {
                     try {
@@ -243,6 +262,7 @@ let o_app = createApp({
                     a_o: [
                         {
                             's_tag': "router-link",
+                            'class': "clickable",
                             'v-for': "o_route in a_o_route",
                             ':to': 'o_route.path',
                             innerText: "{{ o_route.path }}",
@@ -254,15 +274,39 @@ let o_app = createApp({
                 },  
                 {
                     s_tag: "div",
-                    class: "a_o_toast",
+                    class: "a_o_logmsg",
                     a_o: [
                         {
                             s_tag: "div",
-                            class: "o_toast",
-                            'v-for': "o_toast in a_o_toast",
-                            ':class': "[o_toast.s_type, { expired: n_ts_ms_now > o_toast.n_ts_ms_created + o_toast.n_ttl_ms }]",
-                            innerText: "{{ o_toast.s_message }}",
-                        }
+                            class: "o_logmsg",
+                            'v-for': "o_logmsg in a_o_logmsg",
+                            ':class': "[o_logmsg.s_type, { expired: n_ts_ms_now > o_logmsg.n_ts_ms_created + o_logmsg.n_ttl_ms }]",
+                            innerText: "{{ o_logmsg.s_message }}",
+                        },
+                        {
+                            s_tag: "div",
+                            class: "o_logmsg",
+                            ':class': "[o_logmsg__basic_scan.s_type, { expired: n_ts_ms_now > o_logmsg__basic_scan.n_ts_ms_created + o_logmsg__basic_scan.n_ttl_ms }]",
+                            innerText: "{{ o_logmsg__basic_scan.s_message }}",
+                        },
+                        {
+                            s_tag: "div",
+                            class: "o_logmsg",
+                            ':class': "[o_logmsg__yolo_scan.s_type, { expired: n_ts_ms_now > o_logmsg__yolo_scan.n_ts_ms_created + o_logmsg__yolo_scan.n_ttl_ms }]",
+                            innerText: "{{ o_logmsg__yolo_scan.s_message }}",
+                        },
+                        {
+                            s_tag: "div",
+                            class: "o_logmsg",
+                            ':class': "[o_logmsg__vitpose_scan.s_type, { expired: n_ts_ms_now > o_logmsg__vitpose_scan.n_ts_ms_created + o_logmsg__vitpose_scan.n_ttl_ms }]",
+                            innerText: "{{ o_logmsg__vitpose_scan.s_message }}",
+                        },
+                        {
+                            s_tag: "div",
+                            class: "o_logmsg",
+                            ':class': "[o_logmsg__blip_scan.s_type, { expired: n_ts_ms_now > o_logmsg__blip_scan.n_ts_ms_created + o_logmsg__blip_scan.n_ttl_ms }]",
+                            innerText: "{{ o_logmsg__blip_scan.s_message }}",
+                        },
                     ]
 
                 },
@@ -281,6 +325,7 @@ let o_app = createApp({
         // Background shader
         let o_mod_bgshader = await import('./bgshader.js');
         o_mod_bgshader.f_start();
+
     },
 });
 globalThis.o_app = o_app;

@@ -30,14 +30,14 @@ let o_component__data = {
                 a_o:[
                     {
                         's_tag': "div",
-                        ":class": "'o_model' + (o_model2.s_name === o_model?.s_name ? ' active' : '')",
+                        ":class": "'clickable o_model' + (o_model2.s_name === o_model?.s_name ? ' active' : '')",
                         'v-for': "o_model2 of o_state.a_o_model",
                         'innerText': "{{ o_model2.s_name }} ({{ (o_state[f_s_name_table__from_o_model(o_model2)] || []).length }})",
                         'v-on:click': "f_select_model(o_model2)",
                     },
                     {
                         's_tag': "button",
-                        'class': "btn__reload",
+                        'class': "clickable btn__reload",
                         'v-on:click': "f_reload_all",
                         'innerText': "Reload all",
                     },
@@ -81,7 +81,7 @@ let o_component__data = {
                     {
                         's_tag': "button",
                         'type': "submit",
-                        'class': "btn__create",
+                        'class': "clickable btn__create",
                         'innerText': "Create",
                     },
                 ]
@@ -89,7 +89,7 @@ let o_component__data = {
             {
                 's_tag': "button",
                 'v-if': "o_model",
-                'class': "btn__clear_table",
+                'class': "clickable btn__clear_table",
                 'v-on:click': "f_clear_table",
                 'innerText': "Delete all data",
             },
@@ -151,24 +151,28 @@ let o_component__data = {
                                         a_o: [
                                             {
                                                 's_tag': "button",
+                                                'class': "clickable",
                                                 'v-if': "o_instance__editing?.n_id !== o_instance.n_id",
                                                 'v-on:click': "f_start_edit(o_instance)",
                                                 'innerText': "edit",
                                             },
                                             {
                                                 's_tag': "button",
+                                                'class': "clickable",
                                                 'v-if': "o_instance__editing?.n_id !== o_instance.n_id",
                                                 'v-on:click': "f_delete_instance(o_instance)",
                                                 'innerText': "delete",
                                             },
                                             {
                                                 's_tag': "button",
+                                                'class': "clickable",
                                                 'v-if': "o_instance__editing?.n_id === o_instance.n_id",
                                                 'v-on:click': "f_save_edit",
                                                 'innerText': "save",
                                             },
                                             {
                                                 's_tag': "button",
+                                                'class': "clickable",
                                                 'v-if': "o_instance__editing?.n_id === o_instance.n_id",
                                                 'v-on:click': "f_cancel_edit",
                                                 'innerText': "cancel",

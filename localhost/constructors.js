@@ -89,6 +89,39 @@ let a_o_data_default = [
             s_key: 's_path_absolute__filebrowser',
             s_value: (typeof Deno !== 'undefined') ? Deno.cwd() + '/.gitignored/testdata' : '/home'
         }
+    },
+    {
+        o_fsnode_preprocessor: {
+            s_name: 'at_least_one_person_in_image',
+            s_f_b_show: `(o_fsnode) => {
+    // o_fsnode properties:
+    //   o_fsnode - { n_bytes, s_name, s_path_absolute, b_folder }
+    //   o_fsnode.a_o_image - [{ n_width, n_height, n_inference_ms, a_o_cococlass }]
+    //     o_image.a_o_cococlass - [{ n_index, s_name, a_o_image }]
+    //   o_fsnode.a_o_video - [{ n_width, n_duration_ms }]
+    //   o_fsnode.a_o_scantarget - [{ s_path_absolute, n_files, n_folders }]
+    //   o_fsnode.a_o_utterance - [{ s_text }]
+    //   o_fsnode.a_o_fsnode_preprocessor - [{ s_name, s_f_b_show, b_active, b_filter, a_o_fsnode }]
+    // Return true to include, false to exclude
+    let o_img = o_fsnode.a_o_image?.at(0);
+    let a_o_person = o_img.a_o_cococlass.find(o=>{
+        return o.s_name == 'person'
+    });
+    return a_o_person?.length > 0;
+    return true;
+}`, // only show files, not folders
+        },
+        o_fsnode_preprocessor: {
+            s_name: 'so_many_cats',
+            s_f_b_show: `(o_fsnode) => {
+    let o_img = o_fsnode.a_o_image?.at(0);
+    let a_o__cat = o_img.a_o_cococlass.find(o=>{
+        return o.s_name == 'cat'
+    });
+    return a_o__cat?.length > 3;
+    return true;
+}`, // only show files, not folders
+        }
     }
 ]
 
@@ -122,21 +155,31 @@ let o_model__o_fsnode = f_o_model({
         f_o_property('s_name', 'string', (s)=>{return s!==''}),
         f_o_property('s_path_absolute', 'string', (s)=>{return s!==''}),
         f_o_property('b_folder', 'boolean', (b)=>{return typeof b === 'boolean'}),
-        f_o_property('b_image', 'boolean'),
-        f_o_property('b_video', 'boolean'),
         f_o_model_prop__timestamp_default(s_name_prop_ts_created),
         f_o_model_prop__timestamp_default(s_name_prop_ts_updated),
     ]
 });
+
+let o_model__o_video = f_o_model({
+    s_name: 'o_video',
+    a_o_property: [
+        f_o_model_prop__default_id(s_name_prop_id),
+        f_o_property('n_width', 'number', (n) => { return n > 0 }),             
+        f_o_property('n_duration_ms', 'number', (n) => { return n > 0 }),   
+        f_o_model_prop__default_id(f_s_name_foreign_key__from_o_model(o_model__o_fsnode)),
+        f_o_model_prop__timestamp_default(s_name_prop_ts_created),
+        f_o_model_prop__timestamp_default(s_name_prop_ts_updated),
+    ]
+});
+
 let o_model__o_scantarget = f_o_model({
     s_name: 'o_scantarget',
     a_o_property: [
         f_o_model_prop__default_id(s_name_prop_id),
         f_o_property('s_path_absolute', 'string', (s)=>{return s!==''}),
-        f_o_property('n_files_recursive', 'number'),
-        f_o_property('n_folders_recursive', 'number'),
+        f_o_property('n_files', 'number'),
+        f_o_property('n_folders', 'number'),
         f_o_model_prop__default_id(f_s_name_foreign_key__from_o_model(o_model__o_fsnode)),
-        f_o_property('b_recursive', 'boolean'),
         f_o_model_prop__timestamp_default(s_name_prop_ts_created),
         f_o_model_prop__timestamp_default(s_name_prop_ts_updated),
     ]
@@ -166,8 +209,76 @@ let o_model__o_utterance = f_o_model({
     ]
 });
 
+// -- a processed image
+let o_model__o_image = f_o_model({
+    s_name: 'o_image',
+    a_o_property: [
+        f_o_model_prop__default_id(s_name_prop_id),
+        f_o_model_prop__default_id(f_s_name_foreign_key__from_o_model(o_model__o_fsnode)),
+
+        f_o_property('n_width', 'number', (n) => { return n > 0 }),
+        f_o_property('n_height', 'number', (n) => { return n > 0 }),
+        f_o_property('n_inference_ms', 'number'),
+        f_o_model_prop__timestamp_default(s_name_prop_ts_created),
+        f_o_model_prop__timestamp_default(s_name_prop_ts_updated),
+    ]
+})
+
+// -- a COCO class (yolov8m uses 80 COCO classes, not ImageNet)
+let o_model__o_cococlass = f_o_model({
+    s_name: 'o_cococlass',
+    a_o_property: [
+        f_o_model_prop__default_id(s_name_prop_id),
+        f_o_property('n_index', 'number', (n) => { return n >= 0 && n < 80 }),
+        f_o_property('s_name', 'string', (s) => { return s !== '' }),  // e.g. "person", "bus"
+        f_o_model_prop__timestamp_default(s_name_prop_ts_created),
+        f_o_model_prop__timestamp_default(s_name_prop_ts_updated),
+    ]
+})
+
+// -- junction: one detected object (image <-> class with bbox + confidence)
+let o_model__o_image_o_cococlass = f_o_model({
+    s_name: 'o_image_o_cococlass',
+    a_o_property: [
+        f_o_model_prop__default_id(s_name_prop_id),
+        f_o_model_prop__default_id(f_s_name_foreign_key__from_o_model(o_model__o_image)),
+        f_o_model_prop__default_id(f_s_name_foreign_key__from_o_model(o_model__o_cococlass)),
+        f_o_property('n_confidence', 'number', (n) => { return n >= 0 && n <= 1 }),
+        f_o_property('n_x1', 'number', (n) => { return n >= 0 }),  // bounding box top-left x
+        f_o_property('n_y1', 'number', (n) => { return n >= 0 }),  // bounding box top-left y
+        f_o_property('n_x2', 'number', (n) => { return n >= 0 }),  // bounding box bottom-right x
+        f_o_property('n_y2', 'number', (n) => { return n >= 0 }),  // bounding box bottom-right y
+        f_o_model_prop__timestamp_default(s_name_prop_ts_created),
+        f_o_model_prop__timestamp_default(s_name_prop_ts_updated),
+    ]
+});
 
 
+let o_model__o_fsnode_preprocessor = f_o_model({
+    s_name: 'o_fsnode_preprocessor',
+    a_o_property: [
+        f_o_model_prop__default_id('n_id'),
+        f_o_property('s_name', 'string', (s)=>{return s!==''}),
+
+        // default value is a function (o_fsnode with nested data (o_image, o_video, o_image_o_cococlass...))=>{return true or false based on type of preprocessor}
+        f_o_property('s_f_b_show', 'string', (s)=>{return typeof s === 'string'}),
+        f_o_property('b_active', 'boolean'),
+        f_o_model_prop__timestamp_default(s_name_prop_ts_created),
+        f_o_model_prop__timestamp_default(s_name_prop_ts_updated),
+    ]
+});
+
+let o_model__o_fsnode_preprocessor_o_fsnode = f_o_model({
+    s_name: 'o_fsnode_preprocessor_o_fsnode',
+    a_o_property: [
+        f_o_model_prop__default_id('n_id'),
+        f_o_property('b_show_yolo', 'boolean'),
+        f_o_model_prop__default_id(f_s_name_foreign_key__from_o_model(o_model__o_fsnode)),
+        f_o_model_prop__default_id(f_s_name_foreign_key__from_o_model(o_model__o_fsnode_preprocessor)),
+        f_o_model_prop__timestamp_default(s_name_prop_ts_created),
+        f_o_model_prop__timestamp_default(s_name_prop_ts_updated),
+    ]
+});
 
 let s_o_logmsg_s_type__log = 'log';
 let s_o_logmsg_s_type__error = 'error';
@@ -193,14 +304,39 @@ let f_o_logmsg = function(
         n_ttl_ms
     }
 }
+// let f_o_example_instance = function(o_model){
+//     // should return something like this 
+    
+//     let o_instance = {};
+//     for(let o_prop of o_model.a_o_property){
+//         //check if property is foreign key
+//         let o_model__foreing = a_o_model.find(function(o_model2){
+//             if(o_model2 == o_model) return false;
+//             let s_fk = f_s_name_foreign_key__from_o_model(o_model2);
+//             return s_fk === o_prop.s_name;
+//         });
+//         if(o_model__foreing){
+//             o_instance[f_s_name_table] = f_o_example_instance(o_model__foreing);
+//         }
+// }
+// let f_o_example_instance_connected_from_o_model = function(){
+//     // this function returns an example instance with all nested related example instances
+
+// }
 
 
 let a_o_model = [
     o_model__o_wsclient,
     o_model__o_fsnode,
+    o_model__o_image,
+    o_model__o_video,
     o_model__o_scantarget,
     o_model__o_keyvalpair,
-    o_model__o_utterance
+    o_model__o_utterance,
+    o_model__o_cococlass,
+    o_model__o_image_o_cococlass,
+    o_model__o_fsnode_preprocessor,
+    o_model__o_fsnode_preprocessor_o_fsnode
 ];
 
 // definition factory — creates message type templates for the a_o_wsmsg registry
@@ -238,9 +374,10 @@ let o_wsmsg__f_a_o_fsnode = f_o_wsmsg_def('f_a_o_fsnode', true);
 let o_wsmsg__logmsg = f_o_wsmsg_def('logmsg', false);
 let o_wsmsg__set_state_data = f_o_wsmsg_def('set_state_data', false);
 let o_wsmsg__utterance = f_o_wsmsg_def('utterance', false);
-let o_wsmsg__scan_folder = f_o_wsmsg_def('scan_folder', true);
-let o_wsmsg__cancel_scan = f_o_wsmsg_def('cancel_scan', false);
-let o_wsmsg__remove_scantarget = f_o_wsmsg_def('remove_scantarget', true);
+let o_wsmsg__o_scantarget__create = f_o_wsmsg_def('o_scantarget__create', true);
+let o_wsmsg__o_scantarget__delete = f_o_wsmsg_def('o_scantarget__delete', true);
+let o_wsmsg__yolo_scan = f_o_wsmsg_def('yolo_scan', true);
+let o_wsmsg__f_a_o_instance__with_relations = f_o_wsmsg_def('f_a_o_instance__with_relations', true);
 
 // client implementations
 o_wsmsg__logmsg.f_v_client_implementation = function(o_wsmsg, o_wsmsg__existing, o_state){
@@ -251,11 +388,20 @@ o_wsmsg__logmsg.f_v_client_implementation = function(o_wsmsg, o_wsmsg__existing,
     if(o_logmsg.b_guilog){
         o_logmsg.n_ts_ms_created = Date.now();
         o_logmsg.n_ttl_ms = o_logmsg.n_ttl_ms || 5000;
-        o_state.a_o_toast.push(o_logmsg);
+        o_state.a_o_logmsg.push(o_logmsg);
     }
 }
 o_wsmsg__set_state_data.f_v_client_implementation = function(o_wsmsg, o_wsmsg__existing, o_state){
-    o_state[o_wsmsg.v_data.s_property] = o_wsmsg.v_data.value;
+    let s_prop = o_wsmsg.v_data.s_property;
+    let v_value = o_wsmsg.v_data.value;
+    let v_existing = o_state[s_prop];
+    if(v_existing && typeof v_existing === 'object' && !Array.isArray(v_existing) && typeof v_value === 'object' && !Array.isArray(v_value)){
+        for(let s_key in v_value){
+            v_existing[s_key] = v_value[s_key];
+        }
+    } else {
+        o_state[s_prop] = v_value;
+    }
 }
 o_wsmsg__utterance.f_v_client_implementation = function(o_wsmsg, o_wsmsg__existing, o_state){
     if(o_state.b_utterance_muted) return;
@@ -267,6 +413,85 @@ o_wsmsg__utterance.f_v_client_implementation = function(o_wsmsg, o_wsmsg__existi
         console.warn('utterance audio playback failed (user interaction may be required):', o_error.message);
     });
 }
+let f_o_example_instance_connected_cricular_from_o_model = function(o_model, a_s_name__visited = []){
+    let o = {};
+    // fill own property with example value based on type
+    for(let o_property of o_model.a_o_property){
+        if(o_property.s_type === 'string'){
+            o[o_property.s_name] = 'string';
+        } else if(o_property.s_type === 'number'){
+            let b_timestamp = (
+                o_property.s_name === s_name_prop_ts_created
+                || o_property.s_name === s_name_prop_ts_updated
+            );
+            o[o_property.s_name] = b_timestamp ? Date.now() : 1;
+        } else if(o_property.s_type === 'boolean'){
+            o[o_property.s_name] = true;
+        }
+    }
+
+    a_s_name__visited = [...a_s_name__visited, o_model.s_name];
+
+    let s_fk__self = f_s_name_foreign_key__from_o_model(o_model);
+
+    for(let o_model__candidate of a_o_model){
+        // find foreign key property in candidate model (excluding the primary n_id)
+        let a_o_prop__fk = o_model__candidate.a_o_property.filter(function(o_prop){
+            return o_prop.s_name !== s_name_prop_id
+                && o_prop.s_name.startsWith('n_')
+                && o_prop.s_name.endsWith(`_${s_name_prop_id}`);
+        });
+
+        let b_references_self = a_o_prop__fk.some(function(o_prop){
+            return o_prop.s_name === s_fk__self;
+        });
+
+        if(!b_references_self) continue;
+
+        let b_junction = a_o_prop__fk.length >= 2;
+
+        if(b_junction){
+            // junction table: find connected model on the other side
+            for(let o_prop__fk of a_o_prop__fk){
+                if(o_prop__fk.s_name === s_fk__self) continue;
+
+                let o_model__connected = a_o_model.find(function(o_m){
+                    return f_s_name_foreign_key__from_o_model(o_m) === o_prop__fk.s_name;
+                });
+
+                if(!o_model__connected) continue;
+
+                let s_key = f_s_name_table__from_o_model(o_model__connected)
+
+                if(a_s_name__visited.includes(o_model__connected.s_name)){
+                    o[s_key] = ['...'];
+                } else {
+                    o[s_key] = [
+                        f_o_example_instance_connected_cricular_from_o_model(
+                            o_model__connected, a_s_name__visited
+                        )
+                    ];
+                }
+            }
+        } else {
+            // direct foreign key: candidate "belongs to" this model, nest as has-many
+            let s_key = f_s_name_table__from_o_model(o_model__candidate);
+
+            if(a_s_name__visited.includes(o_model__candidate.s_name)){
+                o[s_key] = ['...'];
+            } else {
+                o[s_key] = [
+                    f_o_example_instance_connected_cricular_from_o_model(
+                        o_model__candidate, a_s_name__visited
+                    )
+                ];
+            }
+        }
+    }
+
+    return o;
+}
+
 
 let a_o_wsmsg = [
     o_wsmsg__deno_copy_file,
@@ -278,17 +503,24 @@ let a_o_wsmsg = [
     o_wsmsg__logmsg,
     o_wsmsg__set_state_data,
     o_wsmsg__utterance,
-    o_wsmsg__scan_folder,
-    o_wsmsg__cancel_scan,
-    o_wsmsg__remove_scantarget,
+    o_wsmsg__o_scantarget__create,
+    o_wsmsg__o_scantarget__delete,
+    o_wsmsg__yolo_scan,
+    o_wsmsg__f_a_o_instance__with_relations,
 ]
 
 export {
     o_model__o_wsclient,
     o_model__o_fsnode,
+    o_model__o_image,
+    o_model__o_video,
     o_model__o_scantarget,
     o_model__o_keyvalpair,
     o_model__o_utterance,
+    o_model__o_cococlass,
+    o_model__o_image_o_cococlass,
+    o_model__o_fsnode_preprocessor,
+    o_model__o_fsnode_preprocessor_o_fsnode,
     a_o_model,
     f_o_property,
     f_o_model,
@@ -313,9 +545,10 @@ export {
     o_wsmsg__f_a_o_fsnode,
     o_wsmsg__logmsg,
     o_wsmsg__utterance,
-    o_wsmsg__scan_folder,
-    o_wsmsg__cancel_scan,
-    o_wsmsg__remove_scantarget,
+    o_wsmsg__o_scantarget__create,
+    o_wsmsg__o_scantarget__delete,
+    o_wsmsg__yolo_scan,
+    o_wsmsg__f_a_o_instance__with_relations,
     f_o_wsmsg,
     f_o_wsmsg_def,
     s_o_logmsg_s_type__log,
@@ -324,5 +557,6 @@ export {
     s_o_logmsg_s_type__info,
     s_o_logmsg_s_type__debug,
     s_o_logmsg_s_type__table,
-    a_o_data_default
+    a_o_data_default,
+    f_o_example_instance_connected_cricular_from_o_model
 }

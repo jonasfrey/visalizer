@@ -99,7 +99,7 @@ let f_v_crud__indb = function(
     if(!o_model) throw new Error(`Model not found for table ${s_name_table}`);
     let v_return = null;
     
-    if(v_o_data && s_name_crud_function !== 'read' && s_name_crud_function !== 'delete'){
+    if(v_o_data && s_name_crud_function === 'create'){
 
         let a_s_error = f_a_s_error__invalid_model_instance(o_model, v_o_data);
         if(a_s_error.length > 0){
@@ -120,7 +120,7 @@ let f_v_crud__indb = function(
     let o_model_instance = null;
     let a_s_name_property = null;
     let a_v_value = null;
-    if(v_o_data && s_name_crud_function !== 'read' && s_name_crud_function !== 'delete'){
+    if(v_o_data && s_name_crud_function === 'create'){
 
         o_model_instance = f_o_model_instance(o_model, v_o_data);
         a_s_name_property = Object.keys(o_model_instance);
@@ -153,8 +153,24 @@ let f_v_crud__indb = function(
         // console.log(v_o_data);
         let a_o_row = o_db.prepare(s_query).all(...(v_o_data ? Object.values(v_o_data) : []));
         v_return = a_o_row
-        
+
         // v_return = a_o_row.map(function(o_row) { return f_o_row__deserialized(o_model, o_row); });
+    }
+
+    if (s_name_crud_function === 'read_with_relations') {
+        let s_query = `SELECT n_id FROM ${s_name_table}`;
+        if (v_o_data) {
+            let a_s_filter = [];
+            for (let s_key in v_o_data) {
+                a_s_filter.push(`${s_key} = ?`);
+            }
+            if (a_s_filter.length > 0) {
+                s_query += ` WHERE ${a_s_filter.join(' AND ')}`;
+            }
+        }
+        let a_o_row = o_db.prepare(s_query).all(...(v_o_data ? Object.values(v_o_data) : []));
+        let a_n_id = a_o_row.map(function(o_row) { return o_row.n_id; });
+        v_return = a_n_id.length > 0 ? f_a_o_instance__with_relations(o_model, a_n_id) : [];
     }
 
     if (s_name_crud_function === 'update') {
@@ -181,7 +197,6 @@ let f_v_crud__indb = function(
 
     return v_return;
 };
-
 
 
 let f_ensure_default_data = function(){
@@ -297,6 +312,105 @@ let f_ensure_default_data = function(){
 };
 
 
+let f_a_o_instance__with_relations = function(o_model, a_n_id, a_s_name__visited = []){
+    let s_name_table = f_s_name_table__from_o_model(o_model);
+
+    // load instance by id
+    let a_o_instance = [];
+    for(let n_id of a_n_id){
+        let o_instance = o_db.prepare(`SELECT * FROM ${s_name_table} WHERE n_id = ?`).get(n_id);
+        if(o_instance) a_o_instance.push(o_instance);
+    }
+
+    a_s_name__visited = [...a_s_name__visited, o_model.s_name];
+
+    let s_fk__self = f_s_name_foreign_key__from_o_model(o_model);
+
+    // for each instance, discover and attach related data
+    for(let o_instance of a_o_instance){
+        for(let o_model__candidate of a_o_model){
+            // find foreign key property in candidate (excluding primary n_id)
+            let a_o_prop__fk = o_model__candidate.a_o_property.filter(function(o_prop){
+                return o_prop.s_name !== s_name_prop_id
+                    && o_prop.s_name.startsWith('n_')
+                    && o_prop.s_name.endsWith(`_${s_name_prop_id}`);
+            });
+
+            let b_references_self = a_o_prop__fk.some(function(o_prop){
+                return o_prop.s_name === s_fk__self;
+            });
+
+            if(!b_references_self) continue;
+
+            let b_junction = a_o_prop__fk.length >= 2;
+
+            if(b_junction){
+                // junction table: follow through to the connected model
+                for(let o_prop__fk of a_o_prop__fk){
+                    if(o_prop__fk.s_name === s_fk__self) continue;
+
+                    let o_model__connected = a_o_model.find(function(o_m){
+                        return f_s_name_foreign_key__from_o_model(o_m) === o_prop__fk.s_name;
+                    });
+
+                    if(!o_model__connected) continue;
+
+                    let s_key = f_s_name_table__from_o_model(o_model__connected);
+
+                    if(a_s_name__visited.includes(o_model__connected.s_name)){
+                        o_instance[s_key] = '.';
+                    } else {
+                        let s_name_table__junction = f_s_name_table__from_o_model(o_model__candidate);
+                        let a_o_junction = o_db.prepare(
+                            `SELECT ${o_prop__fk.s_name} FROM ${s_name_table__junction} WHERE ${s_fk__self} = ?`
+                        ).all(o_instance.n_id);
+
+                        let a_n_id__related = a_o_junction.map(function(o_row){
+                            return o_row[o_prop__fk.s_name];
+                        });
+
+                        if(a_n_id__related.length > 0){
+                            o_instance[s_key] = f_a_o_instance__with_relations(
+                                o_model__connected, a_n_id__related, a_s_name__visited
+                            );
+                        } else {
+                            o_instance[s_key] = [];
+                        }
+                    }
+                }
+            } else {
+                // direct foreign key: candidate belongs to this model
+                let s_key = f_s_name_table__from_o_model(o_model__candidate);
+
+                if(a_s_name__visited.includes(o_model__candidate.s_name)){
+                    o_instance[s_key] = '.';
+                } else {
+                    let s_name_table__candidate = f_s_name_table__from_o_model(o_model__candidate);
+                    let a_o_related = o_db.prepare(
+                        `SELECT n_id FROM ${s_name_table__candidate} WHERE ${s_fk__self} = ?`
+                    ).all(o_instance.n_id);
+
+                    let a_n_id__related = a_o_related.map(function(o_row){
+                        return o_row.n_id;
+                    });
+
+                    if(a_n_id__related.length > 0){
+                        o_instance[s_key] = f_a_o_instance__with_relations(
+                            o_model__candidate, a_n_id__related, a_s_name__visited
+                        );
+                    } else {
+                        o_instance[s_key] = [];
+                    }
+                }
+            }
+        }
+    }
+
+    return a_o_instance;
+}
+
+
+
 let f_s_python__model_constructor = function(
     s_name_model
 ){
@@ -338,5 +452,6 @@ export {
     f_db_delete_where_like,
     f_ensure_default_data,
     f_generate_model_constructors_for_cli_languages,
-    f_set_send_logmsg
+    f_set_send_logmsg,
+    f_a_o_instance__with_relations
 };
