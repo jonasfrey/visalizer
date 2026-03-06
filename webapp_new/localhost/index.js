@@ -6,10 +6,13 @@ import {
     a_o_model,
     f_s_name_table__from_o_model,
     o_wsmsg__f_v_crud__indb,
+    o_wsmsg__syncdata,
     o_wsmsg__logmsg,
     a_o_wsmsg,
     f_o_wsmsg,
     f_o_logmsg,
+    f_apply_crud_to_a_o,
+    s_name_prop_id,
     s_o_logmsg_s_type__log,
     s_o_logmsg_s_type__error,
     s_o_logmsg_s_type__warn,
@@ -20,34 +23,29 @@ import {
     f_o_html_from_o_js,
 } from "./lib/handyhelpers.js"
 import { o_component__data } from './o_component__data.js';
-import { o_component__filebrowser } from './o_component__filebrowser.js';
-import { o_component__fsnode } from './o_component__fsnode.js';
-import { o_component__fsnode_preprocessor } from './o_component__fsnode_preprocessor.js';
-import { o_logmsg__basic_scan, o_logmsg__blip_scan, o_logmsg__vitpose_scan, o_logmsg__yolo_scan } from "./runtimedata.js";
+import { o_component__a_o_scantarget } from './o_component__a_o_scantarget.js';
+import './css_helper.js';
+
+import { o_logmsg__run_command } from "./runtimedata.js";
+
 
 
 let o_state = reactive({
     b_loaded: false,
     a_o_route : [
         {
+            path: '/',
+            redirect: '/data',
+        },
+        {
             path: '/data',
             name: 'data',
             component: markRaw(o_component__data),
         },
         {
-            path: '/filebrowser',
-            name: 'filebrowser',
-            component: markRaw(o_component__filebrowser),
-        },
-        {
-            path: '/fsnode',
-            name: 'fsnode',
-            component: markRaw(o_component__fsnode),
-        },
-        {
-            path: '/preprocessor',
-            name: 'preprocessor',
-            component: markRaw(o_component__fsnode_preprocessor),
+            path: '/scantargets',
+            name: 'scantargets',
+            component: markRaw(o_component__a_o_scantarget),
         },
     ],
     a_o_model,
@@ -55,49 +53,8 @@ let o_state = reactive({
         f_o_logmsg('Welcome to the app!', false, true, 'success', Date.now(), 5000),
     ],
     n_ts_ms_now: Date.now(),
-    b_utterance_muted: true,
-    o_logmsg__basic_scan,
-    o_logmsg__yolo_scan,
-    o_logmsg__vitpose_scan,
-    o_logmsg__blip_scan,
+    o_logmsg__run_command
 });
-
-
-let a_s_spinner_frame = ['|', '/', '-', '\\'];
-
-let f_o_logmsg__loading = function(s_message, s_type) {
-    let o_logmsg = f_o_logmsg(
-        a_s_spinner_frame[0] + ' ' + s_message,
-        false, true, s_type || 'info', Date.now(), Infinity
-    );
-    o_state.a_o_logmsg.push(o_logmsg);
-    let n_frame = 0;
-    let s_current_message = s_message;
-    let n_id_interval = setInterval(function() {
-        n_frame = (n_frame + 1) % a_s_spinner_frame.length;
-        o_logmsg.s_message = a_s_spinner_frame[n_frame] + ' ' + s_current_message;
-    }, 200);
-    return {
-        f_update: function(s_new) {
-            s_current_message = s_new;
-        },
-        f_done: function(s_done_message, n_ttl_ms) {
-            clearInterval(n_id_interval);
-            o_logmsg.s_message = s_done_message || s_current_message;
-            o_logmsg.s_type = 'success';
-            o_logmsg.n_ts_ms_created = Date.now();
-            o_logmsg.n_ttl_ms = n_ttl_ms || 3000;
-        },
-        f_error: function(s_error_message, n_ttl_ms) {
-            clearInterval(n_id_interval);
-            o_logmsg.s_message = s_error_message || s_current_message;
-            o_logmsg.s_type = 'error';
-            o_logmsg.n_ts_ms_created = Date.now();
-            o_logmsg.n_ttl_ms = n_ttl_ms || 5000;
-        }
-    };
-};
-
 
 // auto-derive reactive keys for each model table so Vue tracks them before the server sends data
 for (let o_model of a_o_model) {
@@ -118,13 +75,12 @@ let f_register_handler = function(f_handler) {
 
 let n_ms__wsmsg_timeout = 10000;
 
-let f_send_wsmsg_with_response = async function(o_wsmsg, n_ms__timeout){
-    let n_ms = n_ms__timeout || n_ms__wsmsg_timeout;
+let f_send_wsmsg_with_response = async function(o_wsmsg){
     return new Promise(function(resolve, reject) {
         let n_id__timeout = setTimeout(function(){
             f_unregister();
-            reject(new Error(`wsmsg '${o_wsmsg.s_name}' timed out after ${n_ms}ms (uuid: ${o_wsmsg.s_uuid})`));
-        }, n_ms);
+            reject(new Error(`wsmsg '${o_wsmsg.s_name}' timed out after ${n_ms__wsmsg_timeout}ms (uuid: ${o_wsmsg.s_uuid})`));
+        }, n_ms__wsmsg_timeout);
         let f_handler_response = function(o_wsmsg2){
             if(o_wsmsg2.s_uuid === o_wsmsg.s_uuid){
                 clearTimeout(n_id__timeout);
@@ -141,7 +97,11 @@ let f_send_wsmsg_with_response = async function(o_wsmsg, n_ms__timeout){
 let n_ms__reconnect_cap = 60000;
 let b_reconnecting = false;
 
-
+let f_push_toast = function(s_message, s_type, n_ttl_ms){
+    o_state.a_o_logmsg.push(
+        f_o_logmsg(s_message, false, true, s_type, Date.now(), n_ttl_ms || 5000)
+    );
+};
 
 let f_connect = async function() {
     return new Promise(function(resolve, reject) {
@@ -153,9 +113,7 @@ let f_connect = async function() {
                 o_state.s_status = 'connected';
                 o_state.b_connected = true;
                 if(b_reconnecting){
-                    o_state.a_o_logmsg.push(
-                        f_o_logmsg('Reconnected to server', false, true, s_o_logmsg_s_type__info, Date.now(), 3000)
-                    );
+                    f_push_toast('Reconnected to server', s_o_logmsg_s_type__info, 3000);
                     b_reconnecting = false;
                 }
                 n_ms__reconnect_delay = 1000;
@@ -200,9 +158,7 @@ let f_connect = async function() {
             };
 
             o_socket.onerror = function() {
-                o_state.a_o_logmsg.push(
-                    f_o_logmsg('WebSocket error — connection to server lost', false, true, s_o_logmsg_s_type__error, Date.now(), 8000)
-                );
+                f_push_toast('WebSocket error — connection to server lost', s_o_logmsg_s_type__error, 8000);
             };
 
             o_socket.onclose = function() {
@@ -210,8 +166,10 @@ let f_connect = async function() {
                 o_state.b_connected = false;
                 b_reconnecting = true;
                 let n_sec = Math.round(n_ms__reconnect_delay / 1000);
-                o_state.a_o_logmsg.push(
-                    f_o_logmsg(`Server disconnected — retrying in ${n_sec}s`, false, true, s_o_logmsg_s_type__warn, Date.now(), n_ms__reconnect_delay)
+                f_push_toast(
+                    `Server disconnected — retrying in ${n_sec}s`,
+                    s_o_logmsg_s_type__warn,
+                    n_ms__reconnect_delay
                 );
                 setTimeout(async function() {
                     try {
@@ -258,10 +216,10 @@ let o_app = createApp({
                     a_o: [
                         {
                             's_tag': "router-link",
-                            'class': "clickable",
-                            'v-for': "o_route in a_o_route",
+                            'class': "interactable",
+                            'v-for': "o_route in a_o_route.filter(o => o.name)",
                             ':to': 'o_route.path',
-                            innerText: "{{ o_route.path }}",
+                            innerText: "{{ o_route.name }}",
                         }
                     ]
                 },
@@ -282,38 +240,12 @@ let o_app = createApp({
                         {
                             s_tag: "div",
                             class: "o_logmsg",
-                            ':class': "[o_logmsg__basic_scan.s_type, { expired: n_ts_ms_now > o_logmsg__basic_scan.n_ts_ms_created + o_logmsg__basic_scan.n_ttl_ms }]",
-                            innerText: "{{ o_logmsg__basic_scan.s_message }}",
-                        },
-                        {
-                            s_tag: "div",
-                            class: "o_logmsg",
-                            ':class': "[o_logmsg__yolo_scan.s_type, { expired: n_ts_ms_now > o_logmsg__yolo_scan.n_ts_ms_created + o_logmsg__yolo_scan.n_ttl_ms }]",
-                            innerText: "{{ o_logmsg__yolo_scan.s_message }}",
-                        },
-                        {
-                            s_tag: "div",
-                            class: "o_logmsg",
-                            ':class': "[o_logmsg__vitpose_scan.s_type, { expired: n_ts_ms_now > o_logmsg__vitpose_scan.n_ts_ms_created + o_logmsg__vitpose_scan.n_ttl_ms }]",
-                            innerText: "{{ o_logmsg__vitpose_scan.s_message }}",
-                        },
-                        {
-                            s_tag: "div",
-                            class: "o_logmsg",
-                            ':class': "[o_logmsg__blip_scan.s_type, { expired: n_ts_ms_now > o_logmsg__blip_scan.n_ts_ms_created + o_logmsg__blip_scan.n_ttl_ms }]",
-                            innerText: "{{ o_logmsg__blip_scan.s_message }}",
+                            ':class': "[o_logmsg__run_command.s_type, { expired: n_ts_ms_now > o_logmsg__run_command.n_ts_ms_created + o_logmsg__run_command.n_ttl_ms }]",
+                            innerText: "{{ o_logmsg__run_command.s_message }}",
                         },
                     ]
 
                 },
-                {
-                    s_tag: "button",
-                    class: "btn__utterance_mute",
-                    ':class': "{ muted: b_utterance_muted }",
-                    '@click': "b_utterance_muted = !b_utterance_muted",
-                    ':title': "b_utterance_muted ? 'Unmute utterances' : 'Mute utterances'",
-                    innerHTML: "{{ b_utterance_muted ? '&#128264;' : '&#128266;' }}",
-                }
         ]
     }
     )).innerHTML,
@@ -321,7 +253,6 @@ let o_app = createApp({
         // Background shader
         let o_mod_bgshader = await import('./bgshader.js');
         o_mod_bgshader.f_start();
-
     },
 });
 globalThis.o_app = o_app;
@@ -335,9 +266,32 @@ let f_o_socket = function() {
     return o_socket;
 };
 
+// syncdata client implementation: apply broadcasts from other clients / server
+o_wsmsg__syncdata.f_v_client_implementation = function(o_wsmsg, o_wsmsg__existing, o_state_ref){
+    let v_data = o_wsmsg.v_data;
+    f_apply_crud_to_a_o(o_state_ref[v_data.s_name_table], v_data.s_operation, v_data.o_data, s_name_prop_id);
+};
+
+o_wsmsg__syncdata.f_v_sync = async function({s_name_table, s_operation, o_data}){
+    let o_resp = await f_send_wsmsg_with_response(
+        f_o_wsmsg(o_wsmsg__syncdata.s_name, {
+            s_name_table,
+            s_operation,
+            o_data
+        })
+    );
+    if(o_resp.s_error) throw new Error(o_resp.s_error);
+    let v_result = o_resp.v_result;
+    if(s_operation !== 'read'){
+        let o_data__for_state = s_operation === 'delete' ? o_data : v_result;
+        f_apply_crud_to_a_o(o_state[s_name_table], s_operation, o_data__for_state, s_name_prop_id);
+    }
+    return v_result;
+};
+
 export {
     o_state,
     f_o_socket,
     f_send_wsmsg_with_response,
-    f_o_logmsg__loading
+    o_wsmsg__syncdata
 }

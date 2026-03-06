@@ -1,14 +1,11 @@
 {
   "version": "5",
   "specifiers": {
-    "jsr:@apn/websersocketgui@0.3.3": "0.3.3",
-    "jsr:@apn/websersocketgui@0.3.4": "0.3.4",
-    "jsr:@apn/websersocketgui@0.3.5": "0.3.5",
     "jsr:@db/sqlite@0.11": "0.11.1",
     "jsr:@denosaurs/plug@1": "1.1.0",
     "jsr:@std/assert@0.217": "0.217.0",
     "jsr:@std/encoding@1": "1.0.10",
-    "jsr:@std/fmt@1": "1.0.8",
+    "jsr:@std/fmt@1": "1.0.9",
     "jsr:@std/fs@1": "1.0.23",
     "jsr:@std/fs@^1.0.23": "1.0.23",
     "jsr:@std/internal@^1.0.12": "1.0.12",
@@ -17,15 +14,6 @@
     "jsr:@std/path@^1.1.4": "1.1.4"
   },
   "jsr": {
-    "@apn/websersocketgui@0.3.3": {
-      "integrity": "395886f1fa828437cd8ba1498981417778140c4b4fe0789772382cee69053497"
-    },
-    "@apn/websersocketgui@0.3.4": {
-      "integrity": "bd32cbbfd52c7254bb163059452c6336fd41a82c9d8026cc226a82356535e256"
-    },
-    "@apn/websersocketgui@0.3.5": {
-      "integrity": "f01ce584c614d5c896b649ed8c4d4696407ce9f35c4011f3dfc64648a54bf43a"
-    },
     "@db/sqlite@0.11.1": {
       "integrity": "546434e7ed762db07e6ade0f963540dd5e06723b802937bf260ff855b21ef9c5",
       "dependencies": [
@@ -48,8 +36,8 @@
     "@std/encoding@1.0.10": {
       "integrity": "8783c6384a2d13abd5e9e87a7ae0520a30e9f56aeeaa3bdf910a3eaaf5c811a1"
     },
-    "@std/fmt@1.0.8": {
-      "integrity": "71e1fc498787e4434d213647a6e43e794af4fd393ef8f52062246e06f7e372b7"
+    "@std/fmt@1.0.9": {
+      "integrity": "2487343e8899fb2be5d0e3d35013e54477ada198854e52dd05ed0422eddcabe0"
     },
     "@std/fs@1.0.23": {
       "integrity": "3ecbae4ce4fee03b180fa710caff36bb5adb66631c46a6460aaad49515565a37",
@@ -76,7 +64,7 @@
   },
   "workspace": {
     "dependencies": [
-      "jsr:@apn/websersocketgui@0.1"
+      "jsr:@std/fs@^1.0.23"
     ]
   }
 }
